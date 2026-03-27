@@ -236,6 +236,7 @@ def compute_stores() -> List[Dict[str, Any]]:
         stores.append(
             {
                 "id": idx,
+                "code": store_id,
                 "name": meta.get("name", f"Store {store_id}"),
                 "lat": meta.get("lat", 0.0),
                 "lng": meta.get("lng", 0.0),

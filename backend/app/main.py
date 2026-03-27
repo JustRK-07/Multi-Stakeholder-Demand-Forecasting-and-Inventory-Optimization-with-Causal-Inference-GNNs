@@ -13,9 +13,10 @@ from .dashboard_metrics import (
     compute_kpis,
     compute_stores,
 )
-from .dataset_registry import get_dataset, list_datasets, register_dataset_upload
+from .dataset_registry import activate_dataset, get_active_dataset, get_dataset, list_datasets, register_dataset_upload
 from .ml.forecast_model import forecast as forecast_units
 from .ml.forecast_model import forecast_multi, recent_actuals
+from .ml.forecast_model import training_summary
 from .ml.gnn_inference import get_embedding, most_similar
 from .ml.graph_model import load_or_build as load_product_graph
 from .ml.rl_inference import recommend_orders
@@ -66,7 +67,8 @@ def get_forecasts(
     include_actuals: bool = True,
     gnn_adjust: bool = True,
 ) -> Dict[str, Any]:
-    _ = product_id
+    selected_store_id = store_id
+    selected_product_id = product_id
     def format_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         data: List[Dict[str, Any]] = []
         for row in rows:
@@ -80,7 +82,15 @@ def get_forecasts(
             data.append(item)
         return data
 
-    payload: Dict[str, Any] = {"horizon": horizon}
+    summary = training_summary()
+    payload: Dict[str, Any] = {
+        "horizon": horizon,
+        "storeId": selected_store_id,
+        "productId": selected_product_id,
+        "gnnAdjust": gnn_adjust,
+        "modelInfo": summary["metadata"],
+        "metrics": summary["metrics"],
+    }
 
     if multi:
         horizon_map = forecast_multi(store_id, product_id=product_id, gnn_adjust=gnn_adjust)
@@ -97,6 +107,21 @@ def get_forecasts(
         ]
 
     return ok(payload)
+
+
+@app.get("/api/v1/forecast/meta")
+def get_forecast_meta() -> Dict[str, Any]:
+    summary = training_summary()
+    active_dataset = get_active_dataset()
+    return ok(
+        {
+            "metrics": summary["metrics"],
+            "modelInfo": summary["metadata"],
+            "stores": summary["stores"],
+            "products": summary["products"],
+            "activeDatasetId": active_dataset.get("datasetId") if active_dataset else None,
+        }
+    )
 
 
 @app.get("/api/v1/inventory")
@@ -245,7 +270,20 @@ def dataset_status(dataset_id: str) -> Dict[str, Any]:
 
 @app.get("/api/v1/datasets")
 def get_datasets() -> Dict[str, Any]:
-    return ok({"items": list_datasets()})
+    active_dataset = get_active_dataset()
+    return ok({"items": list_datasets(), "activeDatasetId": active_dataset.get("datasetId") if active_dataset else None})
+
+
+@app.post("/api/v1/datasets/{dataset_id}/activate")
+def activate_uploaded_dataset(dataset_id: str) -> Dict[str, Any]:
+    try:
+        record = activate_dataset(dataset_id)
+    except Exception as exc:
+        return JSONResponse(
+            status_code=404,
+            content=err("DATASET_ACTIVATION_FAILED", str(exc), details={"datasetId": dataset_id}),
+        )
+    return ok(record)
 
 
 @app.get("/api/v1/settings")

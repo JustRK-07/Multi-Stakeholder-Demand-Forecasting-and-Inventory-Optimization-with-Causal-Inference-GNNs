@@ -1,26 +1,70 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, Legend } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
-import { fetchForecasts, qk } from "@/api/queries";
+import { fetchForecasts, fetchForecastMeta, fetchProducts, fetchStores, qk } from "@/api/queries";
 import { Switch } from "@/components/ui/switch";
 
 const ForecastResults = () => {
   const [horizon, setHorizon] = useState("30");
   const [gnnAdjust, setGnnAdjust] = useState(true);
+  const [storeId, setStoreId] = useState("");
+  const [productId, setProductId] = useState("");
   const horizonNum = Number(horizon) || 30;
-  const { data } = useQuery({
-    queryKey: [...qk.forecasts("S001", horizonNum), gnnAdjust],
-    queryFn: () => fetchForecasts("S001", horizonNum, undefined, gnnAdjust),
-  });
-  const forecastData = data?.data ?? [];
 
-  const forecastTable = forecastData.filter((_, i) => i >= Math.max(0, horizonNum - 10)).map((d) => ({
+  const { data: stores } = useQuery({ queryKey: qk.stores, queryFn: fetchStores });
+  const { data: meta } = useQuery({ queryKey: qk.forecastMeta, queryFn: fetchForecastMeta });
+  const { data: products } = useQuery({
+    queryKey: qk.products(storeId),
+    queryFn: () => fetchProducts(storeId || undefined),
+  });
+
+  useEffect(() => {
+    if (!storeId && stores?.data?.length) {
+      setStoreId(stores.data[0].code);
+    }
+  }, [storeId, stores]);
+
+  const productOptions = useMemo(() => {
+    const items = products?.items ?? [];
+    return items.filter((item) => !storeId || item.store_id === storeId).slice(0, 50);
+  }, [products, storeId]);
+
+  useEffect(() => {
+    if ((!productId || !productOptions.some((item) => item.product_id === productId)) && productOptions.length) {
+      setProductId(productOptions[0].product_id);
+    }
+  }, [productId, productOptions]);
+
+  const { data } = useQuery({
+    queryKey: [...qk.forecasts(storeId || "S001", horizonNum), productId || "default", gnnAdjust],
+    queryFn: () => fetchForecasts(storeId || "S001", horizonNum, productId || undefined, gnnAdjust),
+    enabled: Boolean(storeId || stores?.data?.length),
+  });
+
+  const forecastFutureData = (data?.data ?? []).map((point) => ({
+    ...point,
+    actual: undefined,
+    confidence: point.upperBound > 0 ? (((point.predicted - point.lowerBound) / Math.max(point.upperBound - point.lowerBound, 1)) * 100).toFixed(1) : "0.0",
+  }));
+  const forecastData = [
+    ...(data?.actuals ?? []).map((item) => ({
+      date: item.date,
+      actual: item.actual,
+      predicted: undefined,
+      upperBound: undefined,
+      lowerBound: undefined,
+      confidence: "0.0",
+    })),
+    ...forecastFutureData,
+  ];
+
+  const forecastTable = forecastFutureData.slice(-10).map((d) => ({
     date: d.date,
     predicted: d.predicted,
     upper: d.upperBound,
     lower: d.lowerBound,
-    confidence: (90 + Math.random() * 8).toFixed(1),
+    confidence: d.confidence,
   }));
 
   return (
@@ -29,20 +73,33 @@ const ForecastResults = () => {
         <div>
           <h2 className="text-lg font-bold text-foreground">Forecast Results</h2>
           <p className="text-xs text-muted-foreground">AI-predicted demand with confidence intervals</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Model trained: {data?.modelInfo?.trained_at ? new Date(data.modelInfo.trained_at).toLocaleString() : "—"}
+          </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Switch checked={gnnAdjust} onCheckedChange={setGnnAdjust} />
             GNN Adjust
           </div>
-          <Select defaultValue="all">
+          <Select value={storeId} onValueChange={setStoreId}>
             <SelectTrigger className="w-36 h-8 text-xs bg-secondary border-border">
               <SelectValue placeholder="Store" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Stores</SelectItem>
-              <SelectItem value="s1">Store S001</SelectItem>
-              <SelectItem value="s2">Store S002</SelectItem>
+              {(stores?.data ?? []).map((store) => (
+                <SelectItem key={store.id} value={store.code}>{store.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={productId} onValueChange={setProductId}>
+            <SelectTrigger className="w-36 h-8 text-xs bg-secondary border-border">
+              <SelectValue placeholder="Product" />
+            </SelectTrigger>
+            <SelectContent>
+              {productOptions.map((product) => (
+                <SelectItem key={product.product_id} value={product.product_id}>{product.product_id}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={horizon} onValueChange={setHorizon}>
@@ -51,13 +108,32 @@ const ForecastResults = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="7">7 Days</SelectItem>
+              <SelectItem value="14">14 Days</SelectItem>
               <SelectItem value="30">30 Days</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {/* Chart */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="glass-card p-4">
+          <p className="data-label">MAE</p>
+          <p className="kpi-value text-foreground text-xl">{data?.metrics ? data.metrics.mae.toFixed(1) : "—"}</p>
+        </div>
+        <div className="glass-card p-4">
+          <p className="data-label">RMSE</p>
+          <p className="kpi-value text-foreground text-xl">{data?.metrics ? data.metrics.rmse.toFixed(1) : "—"}</p>
+        </div>
+        <div className="glass-card p-4">
+          <p className="data-label">MAPE</p>
+          <p className="kpi-value text-foreground text-xl">{data?.metrics ? `${data.metrics.mape.toFixed(1)}%` : "—"}</p>
+        </div>
+        <div className="glass-card p-4">
+          <p className="data-label">Active Dataset</p>
+          <p className="kpi-value text-foreground text-base break-all">{meta?.activeDatasetId ?? "Bundled default"}</p>
+        </div>
+      </div>
+
       <div className="glass-card p-5">
         <h3 className="panel-header mb-4">Actual vs Predicted Demand</h3>
         <ResponsiveContainer width="100%" height={350}>
@@ -81,7 +157,6 @@ const ForecastResults = () => {
         </ResponsiveContainer>
       </div>
 
-      {/* Forecast Table */}
       <div className="glass-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -90,7 +165,7 @@ const ForecastResults = () => {
               <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Predicted Demand</th>
               <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Lower Bound</th>
               <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Upper Bound</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Confidence %</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Band Position %</th>
             </tr>
           </thead>
           <tbody>

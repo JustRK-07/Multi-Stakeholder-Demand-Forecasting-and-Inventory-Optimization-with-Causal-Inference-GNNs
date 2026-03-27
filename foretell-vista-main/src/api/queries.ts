@@ -10,7 +10,32 @@ export type ForecastPoint = {
   lowerBound: number;
 };
 
-export type ForecastResponse = { horizon: number; data: ForecastPoint[] };
+export type ForecastMetrics = { mae: number; rmse: number; mape: number; val_resid_std: number; train_rows: number; val_rows: number };
+export type ForecastModelInfo = {
+  trained_at: string;
+  dataset_rows: number;
+  store_count: number;
+  product_count: number;
+  feature_count: number;
+  supports_mapie: boolean;
+};
+export type ForecastResponse = {
+  horizon: number;
+  storeId: string;
+  productId?: string;
+  gnnAdjust: boolean;
+  data: ForecastPoint[];
+  actuals?: { date: string; actual: number }[];
+  metrics: ForecastMetrics;
+  modelInfo: ForecastModelInfo;
+};
+export type ForecastMetaResponse = {
+  metrics: ForecastMetrics;
+  modelInfo: ForecastModelInfo;
+  stores: string[];
+  products: string[];
+  activeDatasetId?: string | null;
+};
 
 export type InventoryItem = {
   sku: string;
@@ -72,13 +97,15 @@ export type DatasetRecord = {
   columns: string[];
   preview: Record<string, unknown>[];
   suggestedMapping: Record<string, string>;
+  normalizedPath?: string | null;
+  isActive?: boolean;
   error?: string | null;
   validation?: DatasetValidation;
 };
 
 export type UploadResponse = DatasetRecord;
 export type DatasetStatusResponse = DatasetRecord;
-export type DatasetListResponse = { items: DatasetRecord[] };
+export type DatasetListResponse = { items: DatasetRecord[]; activeDatasetId?: string | null };
 
 export type RlRewardPoint = { episode: number; reward: number; baseline: number };
 export type RlRewardsResponse = { data: RlRewardPoint[] };
@@ -90,13 +117,15 @@ export type CausalFactorsResponse = { data: CausalFactor[] };
 export type FederatedRound = { round: number; globalAccuracy: number; localAccuracy: number; privacyBudget: number };
 export type FederatedRoundsResponse = { data: FederatedRound[] };
 
-export type Store = { id: number; name: string; lat: number; lng: number; demand: number; performance: number };
+export type Store = { id: number; code: string; name: string; lat: number; lng: number; demand: number; performance: number };
 export type StoresResponse = { data: Store[] };
 
 export type ExplainabilityFeature = { feature: string; importance: number; shap: number };
 export type ExplainabilityFeaturesResponse = { data: ExplainabilityFeature[] };
 export type Settings = { forecastHorizon: number; holdingCost: number; stockoutCost: number; notifications: boolean };
 export type UpdateSettingsResponse = { updated: boolean; settings: Settings };
+export type ProductSummary = { store_id: string; product_id: string; units_sold: number };
+export type ProductsResponse = { items: ProductSummary[] };
 
 export type DashboardSummaryPoint = { day: string; sales: number; demand: number };
 export type DashboardInventoryPoint = { day: string; level: number };
@@ -117,10 +146,12 @@ export const qk = {
   causalFactors: ["causalFactors"] as const,
   federatedRounds: ["federatedRounds"] as const,
   stores: ["stores"] as const,
+  products: (storeId?: string) => ["products", storeId ?? "all"] as const,
   explainability: ["explainability"] as const,
   datasetStatus: (datasetId: string) => ["datasetStatus", datasetId] as const,
   datasets: ["datasets"] as const,
   settings: ["settings"] as const,
+  forecastMeta: ["forecastMeta"] as const,
 };
 
 export function fetchKpis() {
@@ -135,6 +166,10 @@ export function fetchForecasts(storeId: string, horizon: number, productId?: str
   const params = new URLSearchParams({ horizon: String(horizon), gnn_adjust: String(gnnAdjust) });
   if (productId) params.set("product_id", productId);
   return apiGet<ForecastResponse>(`/api/v1/forecasts/${encodeURIComponent(storeId)}?${params.toString()}`);
+}
+
+export function fetchForecastMeta() {
+  return apiGet<ForecastMetaResponse>("/api/v1/forecast/meta");
 }
 
 export function fetchInventory() {
@@ -177,6 +212,11 @@ export function fetchStores() {
   return apiGet<StoresResponse>("/api/v1/stores");
 }
 
+export function fetchProducts(storeId?: string) {
+  const suffix = storeId ? `?store_id=${encodeURIComponent(storeId)}` : "";
+  return apiGet<ProductsResponse>(`/api/v1/products${suffix}`);
+}
+
 export function fetchExplainabilityFeatures() {
   return apiGet<ExplainabilityFeaturesResponse>("/api/v1/explainability/features");
 }
@@ -196,6 +236,23 @@ export function fetchDatasetStatus(datasetId: string) {
 
 export function fetchDatasets() {
   return apiGet<DatasetListResponse>("/api/v1/datasets");
+}
+
+export async function activateDataset(datasetId: string) {
+  const res = await fetch(`${apiBaseUrl()}/api/v1/datasets/${encodeURIComponent(datasetId)}/activate`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  const text = await res.text();
+  const json = text ? (JSON.parse(text) as ApiEnvelope<DatasetRecord>) : null;
+  if (!res.ok) {
+    throw new ApiRequestError(`HTTP ${res.status} calling /api/v1/datasets/${datasetId}/activate`, "HTTP_ERROR", { status: res.status, body: text });
+  }
+  if (!json || !("success" in json)) {
+    throw new ApiRequestError("Invalid response calling dataset activation", "INVALID_RESPONSE", { body: text });
+  }
+  if (!json.success) throw new ApiRequestError(json.error.message, json.error.code, json.error.details);
+  return json.data;
 }
 
 export function fetchSettings() {

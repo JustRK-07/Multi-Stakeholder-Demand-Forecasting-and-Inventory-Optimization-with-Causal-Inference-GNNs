@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -10,7 +11,7 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import HistGradientBoostingRegressor
 
-from .data import DEFAULT_DATA_PATH, load_groceries_sales
+from .data import DEFAULT_DATA_PATH, load_groceries_sales, resolve_data_path
 from .gnn_inference import most_similar
 from .mlflow_utils import log_run
 from .features import build_feature_frame
@@ -35,9 +36,11 @@ class ForecastArtifacts:
     mapie: Optional[object]
     resid_std: float
     history: pd.DataFrame
+    metrics: Dict[str, float]
+    metadata: Dict[str, object]
 
 
-def _train_model(df: pd.DataFrame) -> ForecastArtifacts:
+def _train_model(df: pd.DataFrame, source_path: Path) -> ForecastArtifacts:
     feats = build_feature_frame(df)
 
     cutoff_1 = feats["date"].quantile(0.70)
@@ -62,6 +65,19 @@ def _train_model(df: pd.DataFrame) -> ForecastArtifacts:
     else:
         resid_std = float(np.std(train[target].values - model.predict(train[feature_cols])))
 
+    if len(val) > 0:
+        eval_pred = model.predict(val[feature_cols])
+        mae = float(np.mean(np.abs(val[target].values - eval_pred)))
+        rmse = float(np.sqrt(np.mean((val[target].values - eval_pred) ** 2)))
+        denom = np.where(val[target].values > 0, val[target].values, np.nan)
+        mape = float(np.nanmean(np.abs((val[target].values - eval_pred) / denom)) * 100.0)
+    else:
+        train_pred = model.predict(train[feature_cols])
+        mae = float(np.mean(np.abs(train[target].values - train_pred)))
+        rmse = float(np.sqrt(np.mean((train[target].values - train_pred) ** 2)))
+        denom = np.where(train[target].values > 0, train[target].values, np.nan)
+        mape = float(np.nanmean(np.abs((train[target].values - train_pred) / denom)) * 100.0)
+
     history = df.copy()
     params = {
         "model": "HistGradientBoostingRegressor",
@@ -71,9 +87,21 @@ def _train_model(df: pd.DataFrame) -> ForecastArtifacts:
         "features": len(feature_cols),
     }
     metrics = {
+        "mae": float(mae),
+        "rmse": float(rmse),
+        "mape": float(np.clip(mape, 0.0, 100.0)),
         "val_resid_std": float(resid_std),
         "train_rows": float(len(train)),
         "val_rows": float(len(val)),
+    }
+    metadata = {
+        "trained_at": datetime.now(timezone.utc).isoformat(),
+        "data_path": str(source_path),
+        "dataset_rows": int(len(df)),
+        "store_count": int(df["store_id"].nunique()),
+        "product_count": int(df["product_id"].nunique()),
+        "feature_count": int(len(feature_cols)),
+        "supports_mapie": MapieRegressor is not None,
     }
     log_run("forecast_baseline", params=params, metrics=metrics)
     return ForecastArtifacts(
@@ -82,22 +110,43 @@ def _train_model(df: pd.DataFrame) -> ForecastArtifacts:
         mapie=mapie,
         resid_std=resid_std,
         history=history,
+        metrics=metrics,
+        metadata=metadata,
     )
 
 
 def train_and_save(path: Optional[Path] = None) -> ForecastArtifacts:
-    df = load_groceries_sales(path or DEFAULT_DATA_PATH)
-    artifacts = _train_model(df)
+    source_path = resolve_data_path(path or DEFAULT_DATA_PATH)
+    df = load_groceries_sales(source_path)
+    artifacts = _train_model(df, source_path)
     joblib.dump(artifacts, MODEL_PATH)
     logger.info("Saved forecast model to %s", MODEL_PATH)
     return artifacts
 
 
 def load_or_train() -> ForecastArtifacts:
+    current_data_path = str(resolve_data_path())
     if MODEL_PATH.exists():
-        return joblib.load(MODEL_PATH)
+        artifacts = joblib.load(MODEL_PATH)
+        if not hasattr(artifacts, "metrics") or not hasattr(artifacts, "metadata"):
+            logger.warning("Forecast artifact missing metrics/metadata. Re-training model.")
+            return train_and_save()
+        if str(artifacts.metadata.get("data_path")) != current_data_path:
+            logger.warning("Forecast artifact data source changed from %s to %s. Re-training model.", artifacts.metadata.get("data_path"), current_data_path)
+            return train_and_save()
+        return artifacts
     logger.warning("Forecast model not found. Training a new model from %s", DEFAULT_DATA_PATH)
     return train_and_save()
+
+
+def training_summary() -> Dict[str, object]:
+    artifacts = load_or_train()
+    return {
+        "metrics": artifacts.metrics,
+        "metadata": artifacts.metadata,
+        "stores": sorted(artifacts.history["store_id"].astype(str).unique().tolist()),
+        "products": sorted(artifacts.history["product_id"].astype(str).unique().tolist()),
+    }
 
 
 def _feature_row(

@@ -128,7 +128,9 @@ const Settings = () => {
           <div>
             <p className="text-sm text-foreground">Uploaded Datasets</p>
             <p className="text-xs text-muted-foreground">
-              {datasets?.items?.length ? `${datasets.items[0].filename} — ${datasets.items[0].rowCount} rows` : "No datasets uploaded yet"}
+              {datasets?.items?.length
+                ? `${datasets.items.find((item) => item.datasetId === datasets.activeDatasetId)?.filename ?? datasets.items[0].filename} — ${datasets.items.find((item) => item.datasetId === datasets.activeDatasetId)?.rowCount ?? datasets.items[0].rowCount} rows`
+                : "No datasets uploaded yet"}
             </p>
           </div>
           <Button variant="outline" size="sm" className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-1" disabled>

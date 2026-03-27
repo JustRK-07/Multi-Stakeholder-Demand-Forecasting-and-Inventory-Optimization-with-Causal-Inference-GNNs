@@ -48,4 +48,4 @@ def test_compute_dashboard_summary_returns_timeseries_and_alerts():
 def test_compute_stores_returns_real_store_rows():
     stores = compute_stores()
     assert len(stores) >= 1
-    assert {"id", "name", "lat", "lng", "demand", "performance"} <= set(stores[0].keys())
+    assert {"id", "code", "name", "lat", "lng", "demand", "performance"} <= set(stores[0].keys())
