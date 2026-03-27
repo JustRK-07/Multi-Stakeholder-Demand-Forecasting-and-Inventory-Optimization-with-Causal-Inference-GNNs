@@ -143,6 +143,36 @@ def activate_dataset(dataset_id: str) -> Dict[str, Any]:
     return registry[dataset_id]
 
 
+def delete_dataset(dataset_id: str) -> Dict[str, Any]:
+    registry = _read_registry()
+    if dataset_id not in registry:
+        raise DatasetValidationError("Dataset not found.", details={"datasetId": dataset_id})
+
+    record = registry.pop(dataset_id)
+    for key in ("storedPath", "normalizedPath"):
+        path_value = record.get(key)
+        if path_value:
+            path = Path(str(path_value))
+            if path.exists():
+                path.unlink()
+
+    active_dataset_id = get_active_dataset_id()
+    if active_dataset_id == dataset_id:
+        if ACTIVE_DATASET_PATH.exists():
+            ACTIVE_DATASET_PATH.unlink()
+        replacement = next((row for row in sorted(registry.values(), key=lambda row: row.get("uploadedAt", ""), reverse=True) if row.get("status") == "completed"), None)
+        for row in registry.values():
+            row["isActive"] = False
+        if replacement:
+            replacement_id = str(replacement["datasetId"])
+            if replacement_id in registry:
+                registry[replacement_id]["isActive"] = True
+                _write_active_dataset(replacement_id)
+
+    _write_registry(registry)
+    return record
+
+
 def _normalize_column_name(name: str) -> str:
     return name.strip().lower().replace("-", "_").replace(" ", "_")
 

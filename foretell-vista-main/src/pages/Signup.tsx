@@ -4,6 +4,7 @@ import { BarChart3, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
 
 const Signup = () => {
@@ -12,13 +13,21 @@ const Signup = () => {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const navigate = useNavigate();
+  const { signup } = useAuth();
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (name && email && password) {
+    try {
+      await signup(name, email, password);
       toast({ title: "Account created successfully" });
       navigate("/dashboard");
+    } catch (error) {
+      toast({
+        title: "Signup failed",
+        description: error instanceof Error ? error.message : "Unable to create account.",
+        variant: "destructive",
+      });
     }
   };
 

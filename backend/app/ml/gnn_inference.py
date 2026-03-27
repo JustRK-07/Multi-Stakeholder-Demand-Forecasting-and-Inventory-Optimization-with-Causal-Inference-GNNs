@@ -7,6 +7,8 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+from .gnn_train import train_gnn
+
 ROOT = Path(__file__).resolve().parents[3]
 META_PATH = ROOT / "backend" / "app" / "ml" / "artifacts" / "product_gnn_meta.json"
 
@@ -14,7 +16,10 @@ META_PATH = ROOT / "backend" / "app" / "ml" / "artifacts" / "product_gnn_meta.js
 @lru_cache(maxsize=1)
 def _load_meta() -> Optional[Dict[str, object]]:
     if not META_PATH.exists():
-        return None
+        try:
+            train_gnn()
+        except Exception:
+            return None
     try:
         return json.loads(META_PATH.read_text())
     except Exception:
@@ -30,6 +35,17 @@ def load_embeddings() -> Dict[str, np.ndarray]:
     if not product_ids or not embeddings:
         return {}
     return {pid: np.array(vec, dtype=float) for pid, vec in zip(product_ids, embeddings)}
+
+
+def graph_meta() -> Dict[str, object]:
+    meta = _load_meta() or {}
+    return {
+        "top_n": meta.get("top_n"),
+        "min_corr": meta.get("min_corr"),
+        "embedding_dim": meta.get("embedding_dim", 0),
+        "graph_stats": meta.get("graph_stats", {"nodes": 0, "edges": 0}),
+        "feature_columns": meta.get("feature_columns", []),
+    }
 
 
 def get_embedding(product_id: str) -> Optional[np.ndarray]:

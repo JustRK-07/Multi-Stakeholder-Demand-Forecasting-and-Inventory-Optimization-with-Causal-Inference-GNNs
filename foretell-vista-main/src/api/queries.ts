@@ -1,4 +1,4 @@
-import { ApiEnvelope, ApiRequestError, apiBaseUrl, apiGet, apiPostForm } from "./client";
+import { apiGet, apiPostForm, apiSendJson } from "./client";
 
 export type KpiCard = { title: string; value: string; change: number; trend: "up" | "down" };
 
@@ -70,16 +70,39 @@ export type Promotion = {
   confidence: number;
   baseline: number;
   withPromo: number;
+  incrementalUnits?: number;
+  ateUnits?: number;
+  methods?: Record<string, number>;
+  diagnostics?: Record<string, number>;
+  cohort?: Record<string, unknown>;
 };
-
-export type PromotionImpactResponse = { found: boolean; promotion: Promotion | null };
+export type PromotionSegment = { id: string; name: string };
+export type PromotionImpactResponse = { found: boolean; promotion: Promotion | null; availablePromotions: PromotionSegment[]; warning?: string };
+export type PromotionSummaryItem = {
+  id: string;
+  name: string;
+  lift: number;
+  confidence: number;
+  baseline: number;
+  withPromo: number;
+  incrementalUnits: number;
+  warning?: string | null;
+};
+export type PromotionsSummaryResponse = { items: PromotionSummaryItem[]; availablePromotions: PromotionSegment[] };
 
 export type ProductNode = { id: number; label: string; x: number; y: number; size: number; category: string };
-export type ProductEdge = { from: number; to: number; type: "complement" | "substitute"; weight: number };
+export type ProductEdge = { from: number; to: number; type: "complement" | "substitute"; weight: number; from_product?: string; to_product?: string };
 export type ProductGraphResponse = { nodes: ProductNode[]; edges: ProductEdge[] };
 export type GraphEmbeddingItem = { product_id: string; embedding: number[] };
 export type GraphSimilarity = { product_id: string; similarity: number };
 export type GraphEmbeddingResponse = { items: GraphEmbeddingItem[]; similar: GraphSimilarity[] };
+export type GraphMetaResponse = {
+  top_n?: number;
+  min_corr?: number;
+  embedding_dim: number;
+  graph_stats: { nodes: number; edges: number };
+  feature_columns: string[];
+};
 
 export type DatasetValidation = {
   requiredColumns?: string[];
@@ -110,6 +133,7 @@ export type DatasetRecord = {
 export type UploadResponse = DatasetRecord;
 export type DatasetStatusResponse = DatasetRecord;
 export type DatasetListResponse = { items: DatasetRecord[]; activeDatasetId?: string | null };
+export type DeleteDatasetResponse = { deleted: boolean; dataset: DatasetRecord; activeDatasetId?: string | null };
 
 export type RlRewardPoint = { episode: number; reward: number; baseline: number };
 export type RlRewardsResponse = { data: RlRewardPoint[] };
@@ -162,7 +186,7 @@ export type OrderScenarioResponse = {
 export type CausalFactor = { factor: string; impact: number; direction: "positive" | "negative" };
 export type CausalFactorsResponse = { data: CausalFactor[] };
 
-export type FederatedRound = { round: number; globalAccuracy: number; localAccuracy: number; privacyBudget: number };
+export type FederatedRound = { round: number; globalAccuracy: number; localAccuracy: number; privacyBudget: number; participants: number };
 export type FederatedRoundsResponse = { data: FederatedRound[] };
 
 export type Store = { id: number; code: string; name: string; lat: number; lng: number; demand: number; performance: number };
@@ -170,8 +194,55 @@ export type StoresResponse = { data: Store[] };
 
 export type ExplainabilityFeature = { feature: string; importance: number; shap: number };
 export type ExplainabilityFeaturesResponse = { data: ExplainabilityFeature[] };
+export type ExplainabilityDriver = ExplainabilityFeature & { label: string; impactDirection: "positive" | "negative" };
+export type ExplainabilitySummaryResponse = {
+  headline: string;
+  narrative: string;
+  drivers: ExplainabilityDriver[];
+  recommendations: string[];
+  focus: { storeId?: string | null; productId?: string | null };
+};
+export type DriftFeature = {
+  feature: string;
+  baselineMean: number;
+  recentMean: number;
+  meanShiftPct: number;
+  psi: number;
+  severity: "low" | "medium" | "high" | "critical";
+};
+export type MonitoringAlert = { severity: "low" | "medium" | "high" | "critical"; title: string; message: string };
+export type DriftReportResponse = {
+  baselineWindowDays: number;
+  recentWindowDays: number;
+  baselineStart: string;
+  baselineEnd: string;
+  recentStart: string;
+  recentEnd: string;
+  features: DriftFeature[];
+  alerts: MonitoringAlert[];
+  target?: DriftFeature | null;
+  summary: { severity: "low" | "medium" | "high" | "critical"; featureCount: number; observationCount: number };
+};
+export type MonitoringStatusResponse = {
+  status: "healthy" | "watch" | "warning" | "critical";
+  activeDatasetId?: string | null;
+  dataPath: string;
+  trainedAt?: string | null;
+  daysSinceTraining?: number | null;
+  observationEndDate?: string | null;
+  dataSpanDays: number;
+  storeCount: number;
+  productCount: number;
+  metrics: ForecastMetrics;
+  driftSeverity: "low" | "medium" | "high" | "critical";
+  topDriftFeatures: DriftFeature[];
+  alerts: MonitoringAlert[];
+};
 export type Settings = { forecastHorizon: number; holdingCost: number; stockoutCost: number; notifications: boolean };
 export type UpdateSettingsResponse = { updated: boolean; settings: Settings };
+export type AuthUser = { name: string; email: string; createdAt?: string | null; lastLoginAt?: string | null };
+export type AuthSessionResponse = { token: string; user: AuthUser; createdAt?: string };
+export type AuthPasswordResponse = { updated: boolean; user: AuthUser };
 export type ProductSummary = { store_id: string; product_id: string; units_sold: number };
 export type ProductsResponse = { items: ProductSummary[] };
 
@@ -187,7 +258,9 @@ export const qk = {
   inventory: ["inventory"] as const,
   orderRecs: ["orderRecs"] as const,
   promotionImpact: (promoId: string) => ["promotionImpact", promoId] as const,
+  promotionsSummary: ["promotionsSummary"] as const,
   productGraph: ["productGraph"] as const,
+  graphMeta: ["graphMeta"] as const,
   graphEmbedding: (productId: string) => ["graphEmbedding", productId] as const,
   rlRewards: ["rlRewards"] as const,
   rlMetrics: ["rlMetrics"] as const,
@@ -196,11 +269,15 @@ export const qk = {
   stores: ["stores"] as const,
   products: (storeId?: string) => ["products", storeId ?? "all"] as const,
   explainability: ["explainability"] as const,
+  explainabilitySummary: ["explainabilitySummary"] as const,
   datasetStatus: (datasetId: string) => ["datasetStatus", datasetId] as const,
   datasets: ["datasets"] as const,
   settings: ["settings"] as const,
+  authSession: ["authSession"] as const,
   forecastMeta: ["forecastMeta"] as const,
   orderScenario: (storeId: string, productId: string, demandScale: number) => ["orderScenario", storeId, productId, demandScale] as const,
+  driftReport: ["driftReport"] as const,
+  monitoringStatus: ["monitoringStatus"] as const,
 };
 
 export function fetchKpis() {
@@ -240,8 +317,16 @@ export function fetchPromotionImpact(promoId: string) {
   return apiGet<PromotionImpactResponse>(`/api/v1/promotions/impact?promo_id=${encodeURIComponent(promoId)}`);
 }
 
+export function fetchPromotionsSummary() {
+  return apiGet<PromotionsSummaryResponse>("/api/v1/promotions/summary");
+}
+
 export function fetchProductGraph() {
   return apiGet<ProductGraphResponse>("/api/v1/graph/products");
+}
+
+export function fetchGraphMeta() {
+  return apiGet<GraphMetaResponse>("/api/v1/graph/meta");
 }
 
 export function fetchGraphEmbedding(productId: string) {
@@ -277,6 +362,18 @@ export function fetchExplainabilityFeatures() {
   return apiGet<ExplainabilityFeaturesResponse>("/api/v1/explainability/features");
 }
 
+export function fetchExplainabilitySummary() {
+  return apiGet<ExplainabilitySummaryResponse>("/api/v1/explainability/summary");
+}
+
+export function fetchDriftReport() {
+  return apiGet<DriftReportResponse>("/api/v1/drift/report");
+}
+
+export function fetchMonitoringStatus() {
+  return apiGet<MonitoringStatusResponse>("/api/v1/monitoring/status");
+}
+
 export function uploadDataset(file: File, columnMapping?: Record<string, string>) {
   const fd = new FormData();
   fd.append("file", file);
@@ -295,20 +392,11 @@ export function fetchDatasets() {
 }
 
 export async function activateDataset(datasetId: string) {
-  const res = await fetch(`${apiBaseUrl()}/api/v1/datasets/${encodeURIComponent(datasetId)}/activate`, {
-    method: "POST",
-    headers: { Accept: "application/json" },
-  });
-  const text = await res.text();
-  const json = text ? (JSON.parse(text) as ApiEnvelope<DatasetRecord>) : null;
-  if (!res.ok) {
-    throw new ApiRequestError(`HTTP ${res.status} calling /api/v1/datasets/${datasetId}/activate`, "HTTP_ERROR", { status: res.status, body: text });
-  }
-  if (!json || !("success" in json)) {
-    throw new ApiRequestError("Invalid response calling dataset activation", "INVALID_RESPONSE", { body: text });
-  }
-  if (!json.success) throw new ApiRequestError(json.error.message, json.error.code, json.error.details);
-  return json.data;
+  return apiSendJson<DatasetRecord>(`/api/v1/datasets/${encodeURIComponent(datasetId)}/activate`, "POST");
+}
+
+export function deleteDataset(datasetId: string) {
+  return apiSendJson<DeleteDatasetResponse>(`/api/v1/datasets/${encodeURIComponent(datasetId)}`, "DELETE");
 }
 
 export function fetchSettings() {
@@ -316,23 +404,25 @@ export function fetchSettings() {
 }
 
 export async function updateSettings(payload: Settings) {
-  const res = await fetch(`${apiBaseUrl()}/api/v1/settings`, {
-    method: "PUT",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  return apiSendJson<UpdateSettingsResponse>("/api/v1/settings", "PUT", payload);
+}
 
-  const text = await res.text();
-  const json = text ? (JSON.parse(text) as ApiEnvelope<UpdateSettingsResponse>) : null;
-  if (!res.ok) {
-    throw new ApiRequestError(`HTTP ${res.status} calling /api/v1/settings`, "HTTP_ERROR", { status: res.status, body: text });
-  }
-  if (!json || !("success" in json)) {
-    throw new ApiRequestError("Invalid response calling /api/v1/settings", "INVALID_RESPONSE", { body: text });
-  }
-  if (!json.success) throw new ApiRequestError(json.error.message, json.error.code, json.error.details);
-  return json.data;
+export function signUp(name: string, email: string, password: string) {
+  return apiSendJson<AuthSessionResponse>("/api/v1/auth/signup", "POST", { name, email, password });
+}
+
+export function logIn(email: string, password: string) {
+  return apiSendJson<AuthSessionResponse>("/api/v1/auth/login", "POST", { email, password });
+}
+
+export function fetchAuthSession() {
+  return apiGet<AuthSessionResponse>("/api/v1/auth/session");
+}
+
+export function logOut() {
+  return apiSendJson<{ loggedOut: boolean }>("/api/v1/auth/logout", "POST");
+}
+
+export function updatePassword(currentPassword: string, newPassword: string) {
+  return apiSendJson<AuthPasswordResponse>("/api/v1/auth/password", "PUT", { currentPassword, newPassword });
 }

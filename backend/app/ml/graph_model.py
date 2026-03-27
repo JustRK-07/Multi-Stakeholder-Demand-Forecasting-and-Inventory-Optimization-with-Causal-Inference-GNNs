@@ -23,6 +23,16 @@ class ProductGraph:
     edges: List[Dict[str, object]]
 
 
+def _category_from_rank(rank_ratio: float) -> str:
+    if rank_ratio >= 0.75:
+        return "Anchor"
+    if rank_ratio >= 0.45:
+        return "Core"
+    if rank_ratio >= 0.2:
+        return "Growth"
+    return "Niche"
+
+
 def _build_graph_from_data(df: pd.DataFrame, top_n: int, min_corr: float) -> ProductGraph:
     totals = df.groupby("product_id")["units_sold"].sum().sort_values(ascending=False)
     products = totals.head(top_n).index.tolist()
@@ -36,20 +46,32 @@ def _build_graph_from_data(df: pd.DataFrame, top_n: int, min_corr: float) -> Pro
         graph.add_node(pid)
 
     edges: List[Dict[str, object]] = []
+    candidate_edges: List[Dict[str, object]] = []
     for i, a in enumerate(products):
         for b in products[i + 1 :]:
             c = corr.loc[a, b]
-            if np.isnan(c) or abs(c) < min_corr:
+            if np.isnan(c):
                 continue
             rel_type = "complement" if c >= 0 else "substitute"
             weight = float(abs(c))
+            candidate_edges.append({"from": a, "to": b, "type": rel_type, "weight": round(weight, 3)})
+            if abs(c) < min_corr:
+                continue
             graph.add_edge(a, b, weight=weight, rel_type=rel_type)
             edges.append({"from": a, "to": b, "type": rel_type, "weight": round(weight, 3)})
+
+    if not edges and candidate_edges:
+        candidate_edges.sort(key=lambda item: item["weight"], reverse=True)
+        fallback_edges = candidate_edges[: max(5, min(20, len(candidate_edges)))]
+        for edge in fallback_edges:
+            graph.add_edge(edge["from"], edge["to"], weight=edge["weight"], rel_type=edge["type"])
+        edges = fallback_edges
 
     pos = nx.spring_layout(graph, seed=42, weight="weight")
     nodes: List[Dict[str, object]] = []
     for idx, pid in enumerate(products, start=1):
         x, y = pos.get(pid, (0.0, 0.0))
+        rank_ratio = float(totals.loc[pid] / max(1.0, totals.iloc[0]))
         nodes.append(
             {
                 "id": idx,
@@ -57,14 +79,22 @@ def _build_graph_from_data(df: pd.DataFrame, top_n: int, min_corr: float) -> Pro
                 "x": float(300 + x * 220),
                 "y": float(250 + y * 180),
                 "size": float(20 + min(20, totals.loc[pid] / max(1.0, totals.iloc[0]) * 20)),
-                "category": "Groceries",
+                "category": _category_from_rank(rank_ratio),
                 "product_id": pid,
+                "total_units": float(totals.loc[pid]),
             }
         )
 
     id_map = {n["label"]: n["id"] for n in nodes}
     edges_mapped = [
-        {"from": id_map[e["from"]], "to": id_map[e["to"]], "type": e["type"], "weight": e["weight"]}
+        {
+            "from": id_map[e["from"]],
+            "to": id_map[e["to"]],
+            "type": e["type"],
+            "weight": e["weight"],
+            "from_product": e["from"],
+            "to_product": e["to"],
+        }
         for e in edges
         if e["from"] in id_map and e["to"] in id_map
     ]

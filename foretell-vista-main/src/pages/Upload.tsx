@@ -3,7 +3,7 @@ import { Upload as UploadIcon, FileSpreadsheet, X, Check, ArrowRight } from "luc
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchDatasetStatus, qk, uploadDataset } from "@/api/queries";
 import { ApiRequestError } from "@/api/client";
 
@@ -15,6 +15,7 @@ const Upload = () => {
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
   const [datasetId, setDatasetId] = useState<string | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const datasetStatus = useQuery({
     queryKey: datasetId ? qk.datasetStatus(datasetId) : ["datasetStatus", "idle"],
     queryFn: () => fetchDatasetStatus(datasetId ?? ""),
@@ -25,6 +26,8 @@ const Upload = () => {
     onSuccess: (res) => {
       setDatasetId(res.datasetId);
       setColumnMapping(res.suggestedMapping || {});
+      queryClient.invalidateQueries({ queryKey: qk.datasets });
+      queryClient.invalidateQueries({ queryKey: qk.forecastMeta });
       toast({
         title: res.status === "completed" ? "Dataset validated" : "Dataset validation failed",
         description:

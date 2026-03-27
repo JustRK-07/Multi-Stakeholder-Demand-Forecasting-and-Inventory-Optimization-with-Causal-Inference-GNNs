@@ -1,10 +1,11 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Brain } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchExplainabilityFeatures, qk } from "@/api/queries";
+import { fetchExplainabilityFeatures, fetchExplainabilitySummary, qk } from "@/api/queries";
 
 export function ExplainabilityPanel() {
   const { data } = useQuery({ queryKey: qk.explainability, queryFn: fetchExplainabilityFeatures });
+  const { data: summary } = useQuery({ queryKey: qk.explainabilitySummary, queryFn: fetchExplainabilitySummary });
   const explainabilityFeatures = data?.data ?? [];
 
   return (
@@ -66,9 +67,20 @@ export function ExplainabilityPanel() {
       <div className="mt-4 p-3 rounded-lg bg-secondary/40 border border-border">
         <div className="flex items-start gap-2">
           <Brain className="h-4 w-4 text-accent mt-0.5 shrink-0" />
-          <p className="text-xs text-secondary-foreground leading-relaxed">
-            <span className="font-medium text-foreground">AI Insight:</span> High demand predicted due to: <span className="text-primary">Weekend (+12%)</span>, <span className="text-primary">Rain forecast (+8%)</span>, <span className="text-primary">Promo X (+15%)</span>. Consider increasing stock for SKU-002 and SKU-004.
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-secondary-foreground leading-relaxed">
+              <span className="font-medium text-foreground">AI Insight:</span> {summary?.headline ?? "Top forecast drivers are loading."} {summary?.narrative ?? ""}
+            </p>
+            {(summary?.recommendations ?? []).length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {summary?.recommendations.map((item) => (
+                  <span key={item} className="rounded-full border border-border bg-background/40 px-2 py-1 text-[11px] text-muted-foreground">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

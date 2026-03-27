@@ -4,6 +4,7 @@ import { InventoryPanel } from "@/components/Inventory/InventoryPanel";
 import { RLPanel } from "@/components/RL/RLPanel";
 import { CausalPanel } from "@/components/Causal/CausalPanel";
 import { ExplainabilityPanel } from "@/components/Explainability/ExplainabilityPanel";
+import { MonitoringPanel } from "@/components/Monitoring/MonitoringPanel";
 import { StorePanel } from "@/components/Store/StorePanel";
 import { FederatedPanel } from "@/components/Federated/FederatedPanel";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
@@ -59,6 +60,7 @@ const DashboardHome = () => {
 
       <RLPanel />
       <CausalPanel />
+      <MonitoringPanel />
       <ExplainabilityPanel />
       <StorePanel />
       <FederatedPanel />

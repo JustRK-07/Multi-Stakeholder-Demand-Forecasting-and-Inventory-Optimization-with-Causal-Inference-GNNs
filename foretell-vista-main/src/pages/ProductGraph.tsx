@@ -2,19 +2,19 @@ import { useState } from "react";
 import { Network, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { fetchGraphEmbedding, fetchProductGraph, qk } from "@/api/queries";
+import { fetchGraphEmbedding, fetchGraphMeta, fetchProductGraph, qk } from "@/api/queries";
 import { Switch } from "@/components/ui/switch";
 
 const categoryColor: Record<string, string> = {
-  Bakery: "hsl(38, 92%, 50%)",
-  Dairy: "hsl(200, 80%, 55%)",
-  Grocery: "hsl(160, 70%, 45%)",
-  Beverages: "hsl(280, 65%, 60%)",
-  Snacks: "hsl(0, 72%, 55%)",
+  Anchor: "hsl(38, 92%, 50%)",
+  Core: "hsl(200, 80%, 55%)",
+  Growth: "hsl(160, 70%, 45%)",
+  Niche: "hsl(0, 72%, 55%)",
 };
 
 const ProductGraph = () => {
   const { data } = useQuery({ queryKey: qk.productGraph, queryFn: fetchProductGraph });
+  const { data: meta } = useQuery({ queryKey: qk.graphMeta, queryFn: fetchGraphMeta });
   const products = data?.nodes ?? [];
   const relationships = data?.edges ?? [];
   const [selectedNode, setSelectedNode] = useState<number | null>(null);
@@ -37,7 +37,7 @@ const ProductGraph = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-foreground">Product Relationship Graph</h2>
-          <p className="text-xs text-muted-foreground">Complement & substitute relationships between products</p>
+          <p className="text-xs text-muted-foreground">Learned graph structure plus generated product embeddings</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -53,7 +53,25 @@ const ProductGraph = () => {
         </div>
       </div>
 
-      {/* Legend */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="glass-card p-4">
+          <p className="data-label">Nodes</p>
+          <p className="kpi-value text-foreground">{meta?.graph_stats?.nodes ?? 0}</p>
+        </div>
+        <div className="glass-card p-4">
+          <p className="data-label">Edges</p>
+          <p className="kpi-value text-foreground">{meta?.graph_stats?.edges ?? 0}</p>
+        </div>
+        <div className="glass-card p-4">
+          <p className="data-label">Embedding Dim</p>
+          <p className="kpi-value text-foreground">{meta?.embedding_dim ?? 0}</p>
+        </div>
+        <div className="glass-card p-4">
+          <p className="data-label">Min Corr</p>
+          <p className="kpi-value text-foreground">{meta?.min_corr ?? 0}</p>
+        </div>
+      </div>
+
       <div className="flex flex-wrap gap-4">
         {Object.entries(categoryColor).map(([cat, color]) => (
           <div key={cat} className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -69,7 +87,6 @@ const ProductGraph = () => {
         </div>
       </div>
 
-      {/* Graph */}
       <div className="glass-card p-4 overflow-hidden">
         <svg viewBox="0 0 700 500" className="w-full h-[480px]" style={{ transform: `scale(${zoom})`, transformOrigin: "center" }}>
           {relationships.map((rel, i) => {
@@ -80,7 +97,10 @@ const ProductGraph = () => {
             return (
               <line
                 key={i}
-                x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+                x1={from.x}
+                y1={from.y}
+                x2={to.x}
+                y2={to.y}
                 stroke={rel.type === "substitute" ? "hsl(38, 92%, 50%)" : "hsl(160, 70%, 45%)"}
                 strokeOpacity={opacity}
                 strokeWidth={rel.weight * 3}
@@ -95,13 +115,15 @@ const ProductGraph = () => {
             return (
               <g key={node.id} onClick={() => setSelectedNode(isSelected ? null : node.id)} className="cursor-pointer" opacity={opacity}>
                 <circle
-                  cx={node.x} cy={node.y} r={node.size}
+                  cx={node.x}
+                  cy={node.y}
+                  r={node.size}
                   fill="hsl(220, 18%, 12%)"
-                  stroke={categoryColor[node.category]}
+                  stroke={categoryColor[node.category] ?? "hsl(160, 70%, 45%)"}
                   strokeWidth={isSelected ? 3 : 1.5}
                 />
                 {isSelected && (
-                  <circle cx={node.x} cy={node.y} r={node.size + 6} fill="none" stroke={categoryColor[node.category]} strokeWidth={1} strokeOpacity={0.4} />
+                  <circle cx={node.x} cy={node.y} r={node.size + 6} fill="none" stroke={categoryColor[node.category] ?? "hsl(160, 70%, 45%)"} strokeWidth={1} strokeOpacity={0.4} />
                 )}
                 <text x={node.x} y={node.y - 2} textAnchor="middle" dominantBaseline="middle" fill="hsl(210, 20%, 92%)" fontSize="10" fontWeight="600">
                   {node.label}
@@ -115,12 +137,14 @@ const ProductGraph = () => {
         </svg>
       </div>
 
-      {/* Selected Node Info */}
       {selectedNode && (
-        <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-3">
-            {getNode(selectedNode).label} — Related Products
-          </h3>
+        <div className="glass-card p-5 space-y-5">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-1">
+              {getNode(selectedNode).label} — Related Products
+            </h3>
+            <p className="text-xs text-muted-foreground">Feature columns used in embedding generation: {(meta?.feature_columns ?? []).join(", ") || "—"}</p>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {relationships
               .filter((r) => r.from === selectedNode || r.to === selectedNode)
@@ -142,8 +166,8 @@ const ProductGraph = () => {
           </div>
 
           {showSimilar && embeddingData?.similar?.length ? (
-            <div className="mt-5">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">GNN Similar Products</div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Embedding Similarity</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {embeddingData.similar.map((s) => (
                   <div key={s.product_id} className="flex items-center justify-between rounded-md border border-border/60 bg-background/40 px-3 py-2">

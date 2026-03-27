@@ -7,22 +7,53 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { User, Bell, Brain, Database, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchDatasets, fetchSettings, qk, updateSettings } from "@/api/queries";
+import { useAuth } from "@/components/AuthProvider";
+import { activateDataset, deleteDataset, fetchDatasets, fetchSettings, qk, updatePassword, updateSettings } from "@/api/queries";
 
 const Settings = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { data: settings } = useQuery({ queryKey: qk.settings, queryFn: fetchSettings });
   const { data: datasets } = useQuery({ queryKey: qk.datasets, queryFn: fetchDatasets });
   const [notifications, setNotifications] = useState(true);
   const [horizon, setHorizon] = useState("30");
   const [holdingCost, setHoldingCost] = useState("0.15");
   const [stockoutCost, setStockoutCost] = useState("1.5");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const saveMutation = useMutation({
     mutationFn: updateSettings,
     onSuccess: (res) => {
       queryClient.setQueryData(qk.settings, res.settings);
       toast({ title: "Settings updated" });
+    },
+  });
+  const passwordMutation = useMutation({
+    mutationFn: ({ current, next }: { current: string; next: string }) => updatePassword(current, next),
+    onSuccess: () => {
+      setCurrentPassword("");
+      setNewPassword("");
+      toast({ title: "Password updated" });
+    },
+    onError: (error) => {
+      toast({ title: "Password update failed", description: error instanceof Error ? error.message : "Unable to update password.", variant: "destructive" });
+    },
+  });
+  const activateMutation = useMutation({
+    mutationFn: activateDataset,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.datasets });
+      queryClient.invalidateQueries({ queryKey: qk.forecastMeta });
+      toast({ title: "Active dataset updated" });
+    },
+  });
+  const deleteMutation = useMutation({
+    mutationFn: deleteDataset,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.datasets });
+      queryClient.invalidateQueries({ queryKey: qk.forecastMeta });
+      toast({ title: "Dataset deleted" });
     },
   });
 
@@ -44,6 +75,10 @@ const Settings = () => {
     });
   };
 
+  const handlePasswordUpdate = () => {
+    passwordMutation.mutate({ current: currentPassword, next: newPassword });
+  };
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
@@ -59,14 +94,18 @@ const Settings = () => {
         </div>
         <div className="space-y-2">
           <Label className="text-foreground text-sm">Email</Label>
-          <Input defaultValue="analyst@company.com" className="bg-secondary border-border text-foreground" disabled />
+          <Input value={user?.email ?? ""} className="bg-secondary border-border text-foreground" disabled />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-foreground text-sm">Current Password</Label>
+          <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" className="bg-secondary border-border text-foreground" />
         </div>
         <div className="space-y-2">
           <Label className="text-foreground text-sm">New Password</Label>
-          <Input type="password" placeholder="••••••••" className="bg-secondary border-border text-foreground" />
+          <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" className="bg-secondary border-border text-foreground" />
         </div>
-        <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => toast({ title: "Password updated" })}>
-          Update Password
+        <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={handlePasswordUpdate} disabled={passwordMutation.isPending || !currentPassword || !newPassword}>
+          {passwordMutation.isPending ? "Updating..." : "Update Password"}
         </Button>
       </div>
 
@@ -124,18 +163,38 @@ const Settings = () => {
           <Database className="h-4 w-4 text-warning" />
           <h3 className="text-sm font-semibold text-foreground">Data Management</h3>
         </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-foreground">Uploaded Datasets</p>
-            <p className="text-xs text-muted-foreground">
-              {datasets?.items?.length
-                ? `${datasets.items.find((item) => item.datasetId === datasets.activeDatasetId)?.filename ?? datasets.items[0].filename} — ${datasets.items.find((item) => item.datasetId === datasets.activeDatasetId)?.rowCount ?? datasets.items[0].rowCount} rows`
-                : "No datasets uploaded yet"}
-            </p>
-          </div>
-          <Button variant="outline" size="sm" className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-1" disabled>
-            <Trash2 className="h-3.5 w-3.5" /> Delete
-          </Button>
+        <div className="space-y-3">
+          {datasets?.items?.length ? datasets.items.map((item) => (
+            <div key={item.datasetId} className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/20 p-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-sm text-foreground">{item.filename}</p>
+                <p className="text-xs text-muted-foreground">
+                  {item.rowCount} rows · {item.status} {item.isActive ? "· active" : ""}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={item.isActive || activateMutation.isPending}
+                  onClick={() => activateMutation.mutate(item.datasetId)}
+                >
+                  {item.isActive ? "Active" : "Activate"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-1"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => deleteMutation.mutate(item.datasetId)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Delete
+                </Button>
+              </div>
+            </div>
+          )) : (
+            <p className="text-xs text-muted-foreground">No datasets uploaded yet.</p>
+          )}
         </div>
       </div>
     </div>

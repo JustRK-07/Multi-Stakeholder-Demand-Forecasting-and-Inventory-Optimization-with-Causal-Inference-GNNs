@@ -7,6 +7,7 @@ export function FederatedPanel() {
   const { data } = useQuery({ queryKey: qk.federatedRounds, queryFn: fetchFederatedRounds });
   const federatedRounds = data?.data ?? [];
   const latest = federatedRounds[federatedRounds.length - 1];
+  const totalRounds = federatedRounds.length || 1;
 
   return (
     <div id="federated" className="glass-card p-5">
@@ -42,9 +43,9 @@ export function FederatedPanel() {
           </div>
           <div className="p-3 rounded-lg bg-secondary/40 border border-border">
             <p className="data-label">Rounds Completed</p>
-            <p className="kpi-value text-foreground text-xl">{latest ? `${latest.round}/10` : "—"}</p>
+            <p className="kpi-value text-foreground text-xl">{latest ? `${latest.round}/${totalRounds}` : "—"}</p>
             <div className="w-full h-1.5 bg-muted rounded-full mt-2 overflow-hidden">
-              <div className="h-full bg-accent rounded-full" style={{ width: `${latest ? (latest.round / 10) * 100 : 0}%` }} />
+              <div className="h-full bg-accent rounded-full" style={{ width: `${latest ? (latest.round / totalRounds) * 100 : 0}%` }} />
             </div>
           </div>
           <div className="p-3 rounded-lg bg-secondary/40 border border-border">
@@ -53,6 +54,7 @@ export function FederatedPanel() {
               <p className="data-label">Privacy Budget (ε)</p>
             </div>
             <p className="kpi-value text-warning text-xl">{latest ? latest.privacyBudget.toFixed(2) : "—"}</p>
+            <p className="text-xs text-muted-foreground mt-2">{latest ? `${latest.participants} store nodes in latest round` : "Waiting for rounds"}</p>
           </div>
         </div>
       </div>

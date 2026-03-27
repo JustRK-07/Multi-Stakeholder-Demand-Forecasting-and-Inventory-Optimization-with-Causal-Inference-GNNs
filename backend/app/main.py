@@ -2,31 +2,34 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, Form, Header, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .api_response import err, ok
+from .auth_store import AuthError, create_session, create_user, delete_session, get_session, update_password
 from .dashboard_metrics import (
     compute_dashboard_summary,
     compute_inventory_items,
     compute_kpis,
     compute_stores,
 )
-from .dataset_registry import activate_dataset, get_active_dataset, get_dataset, list_datasets, register_dataset_upload
+from .dataset_registry import activate_dataset, delete_dataset, get_active_dataset, get_dataset, list_datasets, register_dataset_upload
 from .ml.forecast_model import forecast as forecast_units
 from .ml.forecast_model import forecast_multi, recent_actuals
 from .ml.forecast_model import training_summary
-from .ml.gnn_inference import get_embedding, most_similar
+from .ml.gnn_inference import get_embedding, graph_meta, most_similar
 from .ml.graph_model import load_or_build as load_product_graph
 from .ml.rl_inference import recommend_orders
 from .ml.rl_analysis import evaluate_policies, scenario_simulation
 from .ml.rl_metrics import load_rl_metrics
-from .ml.causal_engine import estimate_promo_effect, explain_factors
+from .ml.causal_engine import available_promotion_segments, estimate_promo_effect, explain_factors, promotion_summary
 from .ml.federated_sim import simulate_federated_rounds
 from .ml.shap_explain import compute_shap_features
-from .ml.drift_monitor import export_snapshot
+from .ml.shap_explain import build_explainability_summary
+from .ml.drift_monitor import export_snapshot, generate_drift_report
 from .ml.data import list_grocery_products
+from .ml.monitoring import model_status
 from .settings_store import load_settings, save_settings
 
 
@@ -44,9 +47,71 @@ app.add_middleware(
 )
 
 
+def _extract_token(authorization: Optional[str]) -> Optional[str]:
+    if not authorization:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return None
+    return token.strip()
+
+
 @app.get("/health")
 def health() -> Dict[str, Any]:
     return ok({"status": "ok"})
+
+
+@app.post("/api/v1/auth/signup")
+def signup(payload: Dict[str, Any]) -> Dict[str, Any]:
+    try:
+        user = create_user(str(payload.get("name", "")), str(payload.get("email", "")), str(payload.get("password", "")))
+        session = create_session(str(payload.get("email", "")), str(payload.get("password", "")))
+    except AuthError as exc:
+        return JSONResponse(status_code=400, content=err(exc.code, exc.message, details=exc.details))
+    return ok({"token": session["token"], "user": user})
+
+
+@app.post("/api/v1/auth/login")
+def login(payload: Dict[str, Any]) -> Dict[str, Any]:
+    try:
+        session = create_session(str(payload.get("email", "")), str(payload.get("password", "")))
+    except AuthError as exc:
+        return JSONResponse(status_code=401, content=err(exc.code, exc.message, details=exc.details))
+    return ok(session)
+
+
+@app.get("/api/v1/auth/session")
+def auth_session(authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    token = _extract_token(authorization)
+    session = get_session(token or "")
+    if not session:
+        return JSONResponse(status_code=401, content=err("UNAUTHORIZED", "A valid session is required."))
+    return ok(session)
+
+
+@app.post("/api/v1/auth/logout")
+def logout(authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    token = _extract_token(authorization)
+    if not token or not delete_session(token):
+        return JSONResponse(status_code=401, content=err("UNAUTHORIZED", "A valid session is required."))
+    return ok({"loggedOut": True})
+
+
+@app.put("/api/v1/auth/password")
+def change_password(payload: Dict[str, Any], authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    token = _extract_token(authorization)
+    session = get_session(token or "")
+    if not session:
+        return JSONResponse(status_code=401, content=err("UNAUTHORIZED", "A valid session is required."))
+    try:
+        user = update_password(
+            session["user"]["email"],
+            str(payload.get("currentPassword", "")),
+            str(payload.get("newPassword", "")),
+        )
+    except AuthError as exc:
+        return JSONResponse(status_code=400, content=err(exc.code, exc.message, details=exc.details))
+    return ok({"updated": True, "user": user})
 
 
 @app.get("/api/v1/kpis")
@@ -160,30 +225,31 @@ def get_order_scenario(
 
 
 @app.get("/api/v1/promotions/impact")
-def get_promotion_impact(promo_id: str, store_id: Optional[str] = None) -> Dict[str, Any]:
+def get_promotion_impact(promo_id: str = "all", store_id: Optional[str] = None, sku: Optional[str] = None) -> Dict[str, Any]:
     promo_id = promo_id.lower().strip()
-    result = estimate_promo_effect(store_id=store_id)
-    name_map = {
-        "festival": "Festival Discount",
-        "bogo": "Buy 1 Get 1",
-        "seasonal": "Seasonal Offer",
-        "flash": "Flash Sale",
-        "holiday": "Holiday/Promotion",
-        "promo": "Holiday/Promotion",
-        "discount": "Discount Days",
-    }
+    result = estimate_promo_effect(promo_id=promo_id, store_id=store_id, sku=sku)
     promo = {
-        "id": promo_id,
-        "name": name_map.get(promo_id, "Holiday/Promotion"),
+        "id": result.promo_id,
+        "name": result.promo_name,
         "lift": result.lift_pct,
         "confidence": result.confidence,
         "baseline": result.baseline,
         "withPromo": result.with_promo,
+        "incrementalUnits": result.incremental_units,
+        "ateUnits": result.ate_units,
+        "methods": result.methods,
+        "diagnostics": result.diagnostics,
+        "cohort": result.cohort,
     }
-    response = {"found": True, "promotion": promo}
+    response = {"found": True, "promotion": promo, "availablePromotions": available_promotion_segments()}
     if result.warning:
         response["warning"] = result.warning
     return ok(response)
+
+
+@app.get("/api/v1/promotions/summary")
+def get_promotions_summary(store_id: Optional[str] = None, sku: Optional[str] = None) -> Dict[str, Any]:
+    return ok({"items": promotion_summary(store_id=store_id, sku=sku), "availablePromotions": available_promotion_segments()})
 
 
 @app.get("/api/v1/graph/products")
@@ -202,6 +268,11 @@ def get_graph_embeddings(product_id: Optional[str] = None, top_k: int = 5) -> Di
         return ok({"items": [], "similar": []})
     similar = [{"product_id": pid, "similarity": round(sim, 4)} for pid, sim in most_similar(product_id, k=top_k)]
     return ok({"items": [{"product_id": product_id, "embedding": emb.tolist()}], "similar": similar})
+
+
+@app.get("/api/v1/graph/meta")
+def get_graph_meta() -> Dict[str, Any]:
+    return ok(graph_meta())
 
 
 @app.get("/api/v1/rl/rewards")
@@ -240,6 +311,11 @@ def get_explainability_features(store_id: Optional[str] = None, sku: Optional[st
     features = compute_shap_features(store_id=store_id, product_id=sku)
     data = [{"feature": f.feature, "importance": round(f.importance, 3), "shap": round(f.shap, 4)} for f in features]
     return ok({"data": data})
+
+
+@app.get("/api/v1/explainability/summary")
+def get_explainability_summary(store_id: Optional[str] = None, sku: Optional[str] = None) -> Dict[str, Any]:
+    return ok(build_explainability_summary(store_id=store_id, product_id=sku))
 
 
 @app.get("/api/v1/products")
@@ -304,6 +380,18 @@ def activate_uploaded_dataset(dataset_id: str) -> Dict[str, Any]:
     return ok(record)
 
 
+@app.delete("/api/v1/datasets/{dataset_id}")
+def remove_dataset(dataset_id: str) -> Dict[str, Any]:
+    try:
+        record = delete_dataset(dataset_id)
+    except Exception as exc:
+        return JSONResponse(
+            status_code=404,
+            content=err("DATASET_DELETE_FAILED", str(exc), details={"datasetId": dataset_id}),
+        )
+    return ok({"deleted": True, "dataset": record, "activeDatasetId": get_active_dataset().get("datasetId") if get_active_dataset() else None})
+
+
 @app.get("/api/v1/settings")
 def get_settings() -> Dict[str, Any]:
     return ok(load_settings())
@@ -319,3 +407,13 @@ def update_settings(payload: Dict[str, Any]) -> Dict[str, Any]:
 def create_drift_snapshot(rows: int = 5000) -> Dict[str, Any]:
     path = export_snapshot(rows=rows)
     return ok({"snapshot": str(path)})
+
+
+@app.get("/api/v1/drift/report")
+def get_drift_report(baseline_days: int = 60, recent_days: int = 14, rows: int = 5000) -> Dict[str, Any]:
+    return ok(generate_drift_report(baseline_days=baseline_days, recent_days=recent_days, rows=rows))
+
+
+@app.get("/api/v1/monitoring/status")
+def get_monitoring_status() -> Dict[str, Any]:
+    return ok(model_status())
