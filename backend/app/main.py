@@ -20,6 +20,7 @@ from .ml.forecast_model import training_summary
 from .ml.gnn_inference import get_embedding, most_similar
 from .ml.graph_model import load_or_build as load_product_graph
 from .ml.rl_inference import recommend_orders
+from .ml.rl_analysis import evaluate_policies, scenario_simulation
 from .ml.rl_metrics import load_rl_metrics
 from .ml.causal_engine import estimate_promo_effect, explain_factors
 from .ml.federated_sim import simulate_federated_rounds
@@ -136,6 +137,28 @@ def get_order_recommendations(store_id: Optional[str] = None, mode: str = "rl") 
     return ok({"recommendations": recs})
 
 
+@app.get("/api/v1/orders/scenario")
+def get_order_scenario(
+    store_id: Optional[str] = None,
+    product_id: Optional[str] = None,
+    periods: int = 14,
+    demand_scale: float = 1.0,
+    lead_time_days: int = 1,
+    holding_cost: float = 0.15,
+    stockout_cost: float = 1.5,
+) -> Dict[str, Any]:
+    result = scenario_simulation(
+        store_id=store_id,
+        product_id=product_id,
+        periods=periods,
+        demand_scale=demand_scale,
+        lead_time_days=lead_time_days,
+        holding_cost=holding_cost,
+        stockout_cost=stockout_cost,
+    )
+    return ok(result)
+
+
 @app.get("/api/v1/promotions/impact")
 def get_promotion_impact(promo_id: str, store_id: Optional[str] = None) -> Dict[str, Any]:
     promo_id = promo_id.lower().strip()
@@ -183,20 +206,15 @@ def get_graph_embeddings(product_id: Optional[str] = None, top_k: int = 5) -> Di
 
 @app.get("/api/v1/rl/rewards")
 def get_rl_rewards(store_id: Optional[str] = None) -> Dict[str, Any]:
-    _ = store_id
-    reward_curve = []
-    for i in range(50):
-        episode = i + 1
-        # Smooth-ish curve approaching -50; baseline approaches -200.
-        reward = -500 + (450 * (1 - (2.718281828 ** (-i / 15)))) + (i % 7) * 2
-        baseline = -500 + (300 * (1 - (2.718281828 ** (-i / 20))))
-        reward_curve.append({"episode": episode, "reward": round(reward, 2), "baseline": round(baseline, 2)})
-    return ok({"data": reward_curve})
+    metrics = evaluate_policies(store_id=store_id, refresh=bool(store_id))
+    return ok({"data": metrics.get("reward_curve", [])})
 
 
 @app.get("/api/v1/rl/metrics")
 def get_rl_metrics() -> Dict[str, Any]:
-    return ok(load_rl_metrics())
+    metrics = load_rl_metrics()
+    series = evaluate_policies().get("series", [])
+    return ok({**metrics, "series": series})
 
 
 @app.get("/api/v1/causal/factors")

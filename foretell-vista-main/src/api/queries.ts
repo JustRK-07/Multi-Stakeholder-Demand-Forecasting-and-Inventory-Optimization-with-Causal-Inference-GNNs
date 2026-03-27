@@ -55,6 +55,10 @@ export type OrderRecommendation = {
   confidence: number;
   expectedSaving: string;
   urgency: "low" | "medium" | "high" | "critical";
+  storeId?: string;
+  recommendedQty?: number;
+  baselineQty?: number;
+  rlQty?: number;
 };
 
 export type OrderRecommendationsResponse = { recommendations: OrderRecommendation[] };
@@ -109,7 +113,51 @@ export type DatasetListResponse = { items: DatasetRecord[]; activeDatasetId?: st
 
 export type RlRewardPoint = { episode: number; reward: number; baseline: number };
 export type RlRewardsResponse = { data: RlRewardPoint[] };
-export type RlMetricsResponse = { rl_total_cost: number; baseline_total_cost: number };
+export type RlSeriesComparison = {
+  store_id: string;
+  product_id: string;
+  rl_total_cost: number;
+  baseline_total_cost: number;
+  savings: number;
+  service_level_rl: number;
+  service_level_baseline: number;
+};
+export type RlMetricsResponse = {
+  rl_total_cost: number;
+  baseline_total_cost: number;
+  cost_delta: number;
+  service_level_rl: number;
+  service_level_baseline: number;
+  average_inventory_rl: number;
+  average_inventory_baseline: number;
+  series: RlSeriesComparison[];
+};
+export type ScenarioDay = {
+  day: number;
+  demand: number;
+  rlOrdered: number;
+  baselineOrdered: number;
+  rlStockout: number;
+  baselineStockout: number;
+  rlEndingInventory: number;
+  baselineEndingInventory: number;
+};
+export type ScenarioSummary = {
+  total_cost: number;
+  holding_cost: number;
+  stockout_cost: number;
+  service_level: number;
+  average_inventory: number;
+  total_orders: number;
+};
+export type OrderScenarioResponse = {
+  store_id: string;
+  product_id: string;
+  rl: ScenarioSummary;
+  baseline: ScenarioSummary;
+  daily: ScenarioDay[];
+  savings: number;
+};
 
 export type CausalFactor = { factor: string; impact: number; direction: "positive" | "negative" };
 export type CausalFactorsResponse = { data: CausalFactor[] };
@@ -152,6 +200,7 @@ export const qk = {
   datasets: ["datasets"] as const,
   settings: ["settings"] as const,
   forecastMeta: ["forecastMeta"] as const,
+  orderScenario: (storeId: string, productId: string, demandScale: number) => ["orderScenario", storeId, productId, demandScale] as const,
 };
 
 export function fetchKpis() {
@@ -178,6 +227,13 @@ export function fetchInventory() {
 
 export function fetchOrderRecommendations(mode: "rl" | "baseline" = "rl") {
   return apiGet<OrderRecommendationsResponse>(`/api/v1/orders/recommend?mode=${mode}`);
+}
+
+export function fetchOrderScenario(storeId?: string, productId?: string, demandScale = 1) {
+  const params = new URLSearchParams({ demand_scale: String(demandScale) });
+  if (storeId) params.set("store_id", storeId);
+  if (productId) params.set("product_id", productId);
+  return apiGet<OrderScenarioResponse>(`/api/v1/orders/scenario?${params.toString()}`);
 }
 
 export function fetchPromotionImpact(promoId: string) {
