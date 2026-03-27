@@ -1,13 +1,19 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional
-from uuid import uuid4
-
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
-from .api_response import ok
+from .api_response import err, ok
+from .dashboard_metrics import (
+    compute_dashboard_summary,
+    compute_inventory_items,
+    compute_kpis,
+    compute_stores,
+)
+from .dataset_registry import get_dataset, list_datasets, register_dataset_upload
 from .ml.forecast_model import forecast as forecast_units
 from .ml.forecast_model import forecast_multi, recent_actuals
 from .ml.gnn_inference import get_embedding, most_similar
@@ -19,6 +25,7 @@ from .ml.federated_sim import simulate_federated_rounds
 from .ml.shap_explain import compute_shap_features
 from .ml.drift_monitor import export_snapshot
 from .ml.data import list_grocery_products
+from .settings_store import load_settings, save_settings
 
 
 app = FastAPI(title="RetailCast API", version="0.1.0")
@@ -42,38 +49,12 @@ def health() -> Dict[str, Any]:
 
 @app.get("/api/v1/kpis")
 def get_kpis(store_id: Optional[str] = None, date_range: Optional[str] = None) -> Dict[str, Any]:
-    _ = (store_id, date_range)
-    # Matches `foretell-vista-main/src/data/mockData.ts` KPI cards.
-    return ok(
-        [
-            {"title": "Forecast Accuracy", "value": "94.2%", "change": 2.1, "trend": "up"},
-            {"title": "Service Level", "value": "97.8%", "change": 0.5, "trend": "up"},
-            {"title": "Inventory Turnover", "value": "12.4x", "change": -0.3, "trend": "down"},
-            {"title": "Stockout Rate", "value": "1.2%", "change": -0.8, "trend": "up"},
-            {"title": "Order Fill Rate", "value": "98.5%", "change": 1.2, "trend": "up"},
-            {"title": "MAPE", "value": "5.8%", "change": -1.4, "trend": "up"},
-        ]
-    )
+    return ok(compute_kpis(store_id=store_id, date_range=date_range))
 
 
 @app.get("/api/v1/dashboard/summary")
 def get_dashboard_summary(store_id: Optional[str] = None) -> Dict[str, Any]:
-    _ = store_id
-    today = date.today()
-    sales_trend = []
-    inventory_trend = []
-    for i in range(14):
-        d = today - timedelta(days=13 - i)
-        # Keep values deterministic-ish across calls without extra deps.
-        base_sales = 600 + (i % 6) * 25
-        base_demand = 620 + (i % 6) * 22
-        sales_trend.append({"day": d.strftime("%b %d"), "sales": base_sales, "demand": base_demand})
-        inventory_trend.append({"day": d.strftime("%b %d"), "level": 2000 - i * 80})
-    alerts = [
-        {"severity": "high", "message": "Stockout risk detected for SKU-004 (Micro Sensors)."},
-        {"severity": "medium", "message": "Promotion impact analysis available for 'Festival Discount'."},
-    ]
-    return ok({"salesTrend": sales_trend, "inventoryTrend": inventory_trend, "alerts": alerts})
+    return ok(compute_dashboard_summary(store_id=store_id))
 
 
 @app.get("/api/v1/forecasts/{store_id}")
@@ -120,20 +101,7 @@ def get_forecasts(
 
 @app.get("/api/v1/inventory")
 def get_inventory(store_id: Optional[str] = None, risk_level: Optional[str] = None) -> Dict[str, Any]:
-    _ = store_id
-    items = [
-        {"sku": "SKU-001", "name": "Premium Widgets", "stock": 1240, "capacity": 2000, "reorderPoint": 500, "daysOfSupply": 18, "risk": "low"},
-        {"sku": "SKU-002", "name": "Standard Bolts", "stock": 320, "capacity": 1500, "reorderPoint": 400, "daysOfSupply": 5, "risk": "high"},
-        {"sku": "SKU-003", "name": "Deluxe Gaskets", "stock": 890, "capacity": 1200, "reorderPoint": 300, "daysOfSupply": 22, "risk": "low"},
-        {"sku": "SKU-004", "name": "Micro Sensors", "stock": 150, "capacity": 800, "reorderPoint": 200, "daysOfSupply": 3, "risk": "critical"},
-        {"sku": "SKU-005", "name": "Copper Cables", "stock": 2100, "capacity": 3000, "reorderPoint": 700, "daysOfSupply": 30, "risk": "low"},
-        {"sku": "SKU-006", "name": "LED Modules", "stock": 450, "capacity": 1000, "reorderPoint": 350, "daysOfSupply": 8, "risk": "medium"},
-        {"sku": "SKU-007", "name": "Steel Frames", "stock": 680, "capacity": 1500, "reorderPoint": 500, "daysOfSupply": 12, "risk": "medium"},
-        {"sku": "SKU-008", "name": "Circuit Boards", "stock": 95, "capacity": 600, "reorderPoint": 150, "daysOfSupply": 2, "risk": "critical"},
-    ]
-    if risk_level:
-        items = [i for i in items if i["risk"] == risk_level]
-    return ok({"items": items})
+    return ok({"items": compute_inventory_items(store_id=store_id, risk_level=risk_level)})
 
 
 @app.get("/api/v1/orders/recommend")
@@ -221,14 +189,7 @@ def get_federated_rounds() -> Dict[str, Any]:
 
 @app.get("/api/v1/stores")
 def get_stores() -> Dict[str, Any]:
-    stores = [
-        {"id": 1, "name": "Downtown Hub", "lat": 40.7128, "lng": -74.006, "demand": 920, "performance": 96},
-        {"id": 2, "name": "Westside Mall", "lat": 40.7589, "lng": -73.9851, "demand": 750, "performance": 91},
-        {"id": 3, "name": "Airport Terminal", "lat": 40.6413, "lng": -73.7781, "demand": 1100, "performance": 98},
-        {"id": 4, "name": "Harbor Point", "lat": 40.6892, "lng": -74.0445, "demand": 430, "performance": 87},
-        {"id": 5, "name": "Midtown Center", "lat": 40.7549, "lng": -73.984, "demand": 1340, "performance": 94},
-    ]
-    return ok({"data": stores})
+    return ok({"data": compute_stores()})
 
 
 @app.get("/api/v1/explainability/features")
@@ -250,33 +211,52 @@ def get_products(store_id: Optional[str] = None, limit: int = 50) -> Dict[str, A
 @app.post("/api/v1/datasets/upload")
 async def upload_dataset(
     file: UploadFile = File(...),
-    # optional in the future: column mapping from Upload page
     column_mapping: Optional[str] = Form(default=None),
 ) -> Dict[str, Any]:
-    _ = column_mapping
-    # For now we just accept the file and return IDs.
-    # Later: stream to object storage, enqueue ingestion job, etc.
-    await file.read()  # consume to avoid "unread file" warnings in some servers
-    dataset_id = str(uuid4())
-    task_id = str(uuid4())
-    return ok({"datasetId": dataset_id, "status": "processing", "taskId": task_id})
+    mapping: Optional[Dict[str, str]] = None
+    if column_mapping:
+        import json
+
+        try:
+            payload = json.loads(column_mapping)
+            if isinstance(payload, dict):
+                mapping = {str(k): str(v) for k, v in payload.items()}
+        except json.JSONDecodeError:
+            return JSONResponse(
+                status_code=400,
+                content=err("INVALID_COLUMN_MAPPING", "Column mapping must be valid JSON."),
+            )
+
+    content = await file.read()
+    record = register_dataset_upload(file.filename or "uploaded_dataset", content, mapping)
+    return ok(record)
 
 
 @app.get("/api/v1/datasets/{dataset_id}/status")
 def dataset_status(dataset_id: str) -> Dict[str, Any]:
-    _ = dataset_id
-    return ok({"status": "processing", "progressPct": 35, "error": None})
+    record = get_dataset(dataset_id)
+    if record is None:
+        return JSONResponse(
+            status_code=404,
+            content=err("DATASET_NOT_FOUND", f"Dataset '{dataset_id}' was not found.", details={"datasetId": dataset_id}),
+        )
+    return ok(record)
+
+
+@app.get("/api/v1/datasets")
+def get_datasets() -> Dict[str, Any]:
+    return ok({"items": list_datasets()})
 
 
 @app.get("/api/v1/settings")
 def get_settings() -> Dict[str, Any]:
-    return ok({"forecastHorizon": 30, "holdingCost": 0.15, "stockoutCost": 1.5, "notifications": True})
+    return ok(load_settings())
 
 
 @app.put("/api/v1/settings")
 def update_settings(payload: Dict[str, Any]) -> Dict[str, Any]:
-    # Stub: echo back.
-    return ok({"updated": True, "settings": payload})
+    saved = save_settings(payload)
+    return ok({"updated": True, "settings": saved})
 
 
 @app.post("/api/v1/drift/snapshot")

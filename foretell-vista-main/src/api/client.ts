@@ -14,7 +14,7 @@ export class ApiRequestError extends Error {
   }
 }
 
-const DEFAULT_BASE_URL = "http://127.0.0.1:8001";
+const DEFAULT_BASE_URL = "http://127.0.0.1:8000";
 
 export function apiBaseUrl(): string {
   const env = (import.meta.env ?? {}) as unknown as { VITE_API_BASE_URL?: string };
@@ -74,4 +74,3 @@ export async function apiPostForm<T>(path: string, formData: FormData, init?: Re
   if (!json.success) throw new ApiRequestError(json.error.message, json.error.code, json.error.details);
   return json.data;
 }
-

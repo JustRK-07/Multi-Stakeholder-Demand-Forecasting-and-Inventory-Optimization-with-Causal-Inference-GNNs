@@ -8,13 +8,17 @@ from typing import Dict, List, Optional
 import joblib
 import numpy as np
 import pandas as pd
-from mapie.regression import MapieRegressor
 from sklearn.ensemble import HistGradientBoostingRegressor
 
 from .data import DEFAULT_DATA_PATH, load_groceries_sales
 from .gnn_inference import most_similar
 from .mlflow_utils import log_run
 from .features import build_feature_frame
+
+try:
+    from mapie.regression import MapieRegressor
+except ImportError:  # pragma: no cover - optional dependency fallback
+    MapieRegressor = None
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +32,7 @@ MODEL_PATH = ARTIFACT_DIR / "forecast_model.joblib"
 class ForecastArtifacts:
     model: HistGradientBoostingRegressor
     feature_columns: List[str]
-    mapie: Optional[MapieRegressor]
+    mapie: Optional[object]
     resid_std: float
     history: pd.DataFrame
 
@@ -48,9 +52,9 @@ def _train_model(df: pd.DataFrame) -> ForecastArtifacts:
     model = HistGradientBoostingRegressor(max_depth=6, learning_rate=0.08, max_iter=250, random_state=42)
     model.fit(train[feature_cols], train[target])
 
-    mapie: Optional[MapieRegressor] = None
+    mapie: Optional[object] = None
     resid_std: float
-    if len(val) > 0:
+    if len(val) > 0 and MapieRegressor is not None:
         mapie = MapieRegressor(estimator=model, cv="split")
         mapie.fit(train[feature_cols], train[target], X_cal=val[feature_cols], y_cal=val[target])
         preds = model.predict(val[feature_cols])

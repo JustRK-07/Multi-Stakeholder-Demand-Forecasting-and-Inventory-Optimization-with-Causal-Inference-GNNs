@@ -1,4 +1,4 @@
-import { apiGet, apiPostForm } from "./client";
+import { ApiEnvelope, ApiRequestError, apiBaseUrl, apiGet, apiPostForm } from "./client";
 
 export type KpiCard = { title: string; value: string; change: number; trend: "up" | "down" };
 
@@ -52,7 +52,33 @@ export type GraphEmbeddingItem = { product_id: string; embedding: number[] };
 export type GraphSimilarity = { product_id: string; similarity: number };
 export type GraphEmbeddingResponse = { items: GraphEmbeddingItem[]; similar: GraphSimilarity[] };
 
-export type UploadResponse = { datasetId: string; status: string; taskId: string };
+export type DatasetValidation = {
+  requiredColumns?: string[];
+  optionalColumns?: string[];
+  missingRequired?: string[];
+  unmappedColumns?: string[];
+  isValid?: boolean;
+};
+
+export type DatasetRecord = {
+  datasetId: string;
+  taskId: string;
+  filename: string;
+  storedPath: string;
+  status: "completed" | "failed";
+  progressPct: number;
+  uploadedAt: string;
+  rowCount: number;
+  columns: string[];
+  preview: Record<string, unknown>[];
+  suggestedMapping: Record<string, string>;
+  error?: string | null;
+  validation?: DatasetValidation;
+};
+
+export type UploadResponse = DatasetRecord;
+export type DatasetStatusResponse = DatasetRecord;
+export type DatasetListResponse = { items: DatasetRecord[] };
 
 export type RlRewardPoint = { episode: number; reward: number; baseline: number };
 export type RlRewardsResponse = { data: RlRewardPoint[] };
@@ -69,6 +95,8 @@ export type StoresResponse = { data: Store[] };
 
 export type ExplainabilityFeature = { feature: string; importance: number; shap: number };
 export type ExplainabilityFeaturesResponse = { data: ExplainabilityFeature[] };
+export type Settings = { forecastHorizon: number; holdingCost: number; stockoutCost: number; notifications: boolean };
+export type UpdateSettingsResponse = { updated: boolean; settings: Settings };
 
 export type DashboardSummaryPoint = { day: string; sales: number; demand: number };
 export type DashboardInventoryPoint = { day: string; level: number };
@@ -90,6 +118,9 @@ export const qk = {
   federatedRounds: ["federatedRounds"] as const,
   stores: ["stores"] as const,
   explainability: ["explainability"] as const,
+  datasetStatus: (datasetId: string) => ["datasetStatus", datasetId] as const,
+  datasets: ["datasets"] as const,
+  settings: ["settings"] as const,
 };
 
 export function fetchKpis() {
@@ -150,8 +181,45 @@ export function fetchExplainabilityFeatures() {
   return apiGet<ExplainabilityFeaturesResponse>("/api/v1/explainability/features");
 }
 
-export function uploadDataset(file: File) {
+export function uploadDataset(file: File, columnMapping?: Record<string, string>) {
   const fd = new FormData();
   fd.append("file", file);
+  if (columnMapping && Object.keys(columnMapping).length > 0) {
+    fd.append("column_mapping", JSON.stringify(columnMapping));
+  }
   return apiPostForm<UploadResponse>("/api/v1/datasets/upload", fd);
+}
+
+export function fetchDatasetStatus(datasetId: string) {
+  return apiGet<DatasetStatusResponse>(`/api/v1/datasets/${encodeURIComponent(datasetId)}/status`);
+}
+
+export function fetchDatasets() {
+  return apiGet<DatasetListResponse>("/api/v1/datasets");
+}
+
+export function fetchSettings() {
+  return apiGet<Settings>("/api/v1/settings");
+}
+
+export async function updateSettings(payload: Settings) {
+  const res = await fetch(`${apiBaseUrl()}/api/v1/settings`, {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+  const json = text ? (JSON.parse(text) as ApiEnvelope<UpdateSettingsResponse>) : null;
+  if (!res.ok) {
+    throw new ApiRequestError(`HTTP ${res.status} calling /api/v1/settings`, "HTTP_ERROR", { status: res.status, body: text });
+  }
+  if (!json || !("success" in json)) {
+    throw new ApiRequestError("Invalid response calling /api/v1/settings", "INVALID_RESPONSE", { body: text });
+  }
+  if (!json.success) throw new ApiRequestError(json.error.message, json.error.code, json.error.details);
+  return json.data;
 }

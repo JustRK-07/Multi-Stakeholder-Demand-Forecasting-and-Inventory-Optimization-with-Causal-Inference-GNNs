@@ -3,19 +3,9 @@ import { Upload as UploadIcon, FileSpreadsheet, X, Check, ArrowRight } from "luc
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
-import { uploadDataset } from "@/api/queries";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { fetchDatasetStatus, qk, uploadDataset } from "@/api/queries";
 import { ApiRequestError } from "@/api/client";
-
-type SampleRow = { date: string; store_id: string; product_id: string; sales: number; price: number };
-
-const sampleData: SampleRow[] = [
-  { date: "2026-01-01", store_id: "S001", product_id: "P101", sales: 142, price: 9.99 },
-  { date: "2026-01-02", store_id: "S001", product_id: "P101", sales: 158, price: 9.99 },
-  { date: "2026-01-03", store_id: "S002", product_id: "P203", sales: 89, price: 14.5 },
-  { date: "2026-01-04", store_id: "S002", product_id: "P203", sales: 95, price: 13.0 },
-  { date: "2026-01-05", store_id: "S003", product_id: "P305", sales: 210, price: 7.25 },
-];
 
 const targetColumns = ["date", "store_id", "product_id", "sales_qty", "price", "promotion", "category"];
 
@@ -23,13 +13,25 @@ const Upload = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
+  const [datasetId, setDatasetId] = useState<string | null>(null);
   const { toast } = useToast();
+  const datasetStatus = useQuery({
+    queryKey: datasetId ? qk.datasetStatus(datasetId) : ["datasetStatus", "idle"],
+    queryFn: () => fetchDatasetStatus(datasetId ?? ""),
+    enabled: Boolean(datasetId),
+  });
   const upload = useMutation({
-    mutationFn: (f: File) => uploadDataset(f),
+    mutationFn: ({ file: nextFile, mapping }: { file: File; mapping: Record<string, string> }) => uploadDataset(nextFile, mapping),
     onSuccess: (res) => {
+      setDatasetId(res.datasetId);
+      setColumnMapping(res.suggestedMapping || {});
       toast({
-        title: "Dataset uploaded",
-        description: `Processing started (datasetId=${res.datasetId}).`,
+        title: res.status === "completed" ? "Dataset validated" : "Dataset validation failed",
+        description:
+          res.status === "completed"
+            ? `Validated ${res.rowCount} rows from ${res.filename}.`
+            : res.error || "The dataset could not be validated.",
+        variant: res.status === "completed" ? "default" : "destructive",
       });
     },
     onError: (e: unknown) => {
@@ -57,14 +59,21 @@ const Upload = () => {
   }, [toast]);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) setFile(e.target.files[0]);
+    if (e.target.files?.[0]) {
+      setFile(e.target.files[0]);
+      setDatasetId(null);
+      setColumnMapping({});
+    }
   };
-
-  const detectedColumns = file ? (Object.keys(sampleData[0]) as Array<keyof SampleRow>) : [];
+  const activeDataset = datasetStatus.data ?? upload.data;
+  const detectedColumns = activeDataset?.columns ?? [];
+  const previewRows = activeDataset?.preview ?? [];
+  const missingRequired = activeDataset?.validation?.missingRequired ?? [];
+  const isValid = activeDataset?.validation?.isValid;
 
   const handleProcess = () => {
     if (!file) return;
-    upload.mutate(file);
+    upload.mutate({ file, mapping: columnMapping });
   };
 
   return (
@@ -91,7 +100,15 @@ const Upload = () => {
                 <p className="text-foreground font-medium">{file.name}</p>
                 <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); setFile(null); setColumnMapping({}); }} className="ml-4 text-muted-foreground hover:text-destructive">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFile(null);
+                  setColumnMapping({});
+                  setDatasetId(null);
+                }}
+                className="ml-4 text-muted-foreground hover:text-destructive"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -108,6 +125,11 @@ const Upload = () => {
         {file && (
           <div className="mt-8">
             <h2 className="text-sm font-semibold text-foreground mb-3">Data Preview</h2>
+            {!activeDataset ? (
+              <div className="glass-card p-6 text-sm text-muted-foreground">
+                Upload and validate the file to see detected columns and preview rows.
+              </div>
+            ) : (
             <div className="glass-card overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -118,11 +140,11 @@ const Upload = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {sampleData.map((row, i) => (
+                  {previewRows.map((row, i) => (
                     <tr key={i} className="border-b border-border/50 hover:bg-secondary/30">
                       {detectedColumns.map((col) => (
                         <td key={col} className="px-4 py-2.5 text-foreground font-mono text-xs">
-                          {String(row[col])}
+                          {String(row[col] ?? "")}
                         </td>
                       ))}
                     </tr>
@@ -130,14 +152,29 @@ const Upload = () => {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         )}
 
         {/* Column Mapping */}
-        {file && (
+        {file && activeDataset && (
           <div className="mt-8">
             <h2 className="text-sm font-semibold text-foreground mb-3">Column Mapping</h2>
             <p className="text-xs text-muted-foreground mb-4">Map your dataset columns to the expected schema.</p>
+            {activeDataset.error ? (
+              <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-xs text-destructive">
+                {activeDataset.error}
+              </div>
+            ) : null}
+            {missingRequired.length > 0 ? (
+              <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-xs text-warning">
+                Missing required mappings: {missingRequired.join(", ")}
+              </div>
+            ) : isValid ? (
+              <div className="mb-4 rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-xs text-primary">
+                Dataset schema is valid. Row count: {activeDataset.rowCount}.
+              </div>
+            ) : null}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {detectedColumns.map((col) => (
                 <div key={col} className="glass-card p-4 flex items-center justify-between gap-3">
@@ -166,7 +203,8 @@ const Upload = () => {
         {file && (
           <div className="mt-8 flex justify-end">
             <Button onClick={handleProcess} disabled={upload.isPending} className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
-              Process Dataset <ArrowRight className="h-4 w-4" />
+              {upload.isPending ? "Validating..." : "Upload & Validate"}
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         )}

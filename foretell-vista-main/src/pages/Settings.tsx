@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,11 +6,43 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { User, Bell, Brain, Database, Trash2 } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchDatasets, fetchSettings, qk, updateSettings } from "@/api/queries";
 
 const Settings = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: settings } = useQuery({ queryKey: qk.settings, queryFn: fetchSettings });
+  const { data: datasets } = useQuery({ queryKey: qk.datasets, queryFn: fetchDatasets });
   const [notifications, setNotifications] = useState(true);
   const [horizon, setHorizon] = useState("30");
+  const [holdingCost, setHoldingCost] = useState("0.15");
+  const [stockoutCost, setStockoutCost] = useState("1.5");
+  const saveMutation = useMutation({
+    mutationFn: updateSettings,
+    onSuccess: (res) => {
+      queryClient.setQueryData(qk.settings, res.settings);
+      toast({ title: "Settings updated" });
+    },
+  });
+
+  useEffect(() => {
+    if (settings) {
+      setNotifications(settings.notifications);
+      setHorizon(String(settings.forecastHorizon));
+      setHoldingCost(String(settings.holdingCost));
+      setStockoutCost(String(settings.stockoutCost));
+    }
+  }, [settings]);
+
+  const handleSave = () => {
+    saveMutation.mutate({
+      forecastHorizon: Number(horizon) || 30,
+      holdingCost: Number(holdingCost) || 0.15,
+      stockoutCost: Number(stockoutCost) || 1.5,
+      notifications,
+    });
+  };
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -75,8 +107,15 @@ const Settings = () => {
         </div>
         <div className="space-y-2">
           <Label className="text-foreground text-sm">Holding Cost ($/unit/day)</Label>
-          <Input type="number" defaultValue="0.15" className="bg-secondary border-border text-foreground w-40" />
+          <Input type="number" value={holdingCost} onChange={(e) => setHoldingCost(e.target.value)} className="bg-secondary border-border text-foreground w-40" />
         </div>
+        <div className="space-y-2">
+          <Label className="text-foreground text-sm">Stockout Cost ($/unit)</Label>
+          <Input type="number" value={stockoutCost} onChange={(e) => setStockoutCost(e.target.value)} className="bg-secondary border-border text-foreground w-40" />
+        </div>
+        <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleSave} disabled={saveMutation.isPending}>
+          {saveMutation.isPending ? "Saving..." : "Save Model Settings"}
+        </Button>
       </div>
 
       {/* Data Management */}
@@ -88,9 +127,11 @@ const Settings = () => {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-foreground">Uploaded Datasets</p>
-            <p className="text-xs text-muted-foreground">sales_data_2026.csv — 2.4 MB</p>
+            <p className="text-xs text-muted-foreground">
+              {datasets?.items?.length ? `${datasets.items[0].filename} — ${datasets.items[0].rowCount} rows` : "No datasets uploaded yet"}
+            </p>
           </div>
-          <Button variant="outline" size="sm" className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-1">
+          <Button variant="outline" size="sm" className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-1" disabled>
             <Trash2 className="h-3.5 w-3.5" /> Delete
           </Button>
         </div>
