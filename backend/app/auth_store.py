@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from .audit_log import append_audit_event
 
 ROOT = Path(__file__).resolve().parents[2]
 STORAGE_DIR = ROOT / "storage"
@@ -68,6 +69,7 @@ def _sanitize_user(record: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "name": record.get("name", ""),
         "email": record.get("email", ""),
+        "role": record.get("role", "analyst"),
         "createdAt": record.get("createdAt"),
         "lastLoginAt": record.get("lastLoginAt"),
     }
@@ -90,11 +92,13 @@ def create_user(name: str, email: str, password: str) -> Dict[str, Any]:
     users[normalized_email] = {
         "name": name.strip(),
         "email": normalized_email,
+        "role": "admin" if not users else "analyst",
         "passwordHash": _hash_password(password),
         "createdAt": now,
         "lastLoginAt": None,
     }
     _write_json(USERS_PATH, users)
+    append_audit_event("auth.signup", actor=normalized_email, target=normalized_email)
     return _sanitize_user(users[normalized_email])
 
 
@@ -112,6 +116,7 @@ def create_session(email: str, password: str) -> Dict[str, Any]:
     user["lastLoginAt"] = now
     _write_json(SESSIONS_PATH, sessions)
     _write_json(USERS_PATH, users)
+    append_audit_event("auth.login", actor=normalized_email, target=normalized_email)
     return {"token": token, "user": _sanitize_user(user)}
 
 
@@ -146,4 +151,19 @@ def update_password(email: str, current_password: str, new_password: str) -> Dic
         raise AuthError("INVALID_CREDENTIALS", "Current password is incorrect.")
     user["passwordHash"] = _hash_password(new_password)
     _write_json(USERS_PATH, users)
+    append_audit_event("auth.password_update", actor=normalized_email, target=normalized_email)
+    return _sanitize_user(user)
+
+
+def update_profile(email: str, *, name: str) -> Dict[str, Any]:
+    normalized_email = _normalize_email(email)
+    if not name.strip():
+        raise AuthError("INVALID_NAME", "Name is required.")
+    users = _read_json(USERS_PATH)
+    user = users.get(normalized_email)
+    if not user:
+        raise AuthError("USER_NOT_FOUND", "User was not found.")
+    user["name"] = name.strip()
+    _write_json(USERS_PATH, users)
+    append_audit_event("auth.profile_update", actor=normalized_email, target=normalized_email, details={"name": user["name"]})
     return _sanitize_user(user)

@@ -8,14 +8,16 @@ import { useToast } from "@/hooks/use-toast";
 import { User, Bell, Brain, Database, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/AuthProvider";
-import { activateDataset, deleteDataset, fetchDatasets, fetchSettings, qk, updatePassword, updateSettings } from "@/api/queries";
+import { activateDataset, archiveDataset, deleteDataset, fetchDatasets, fetchSettings, qk, updatePassword, updateProfile, updateSettings } from "@/api/queries";
 
 const Settings = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, refreshSession } = useAuth();
   const { data: settings } = useQuery({ queryKey: qk.settings, queryFn: fetchSettings });
-  const { data: datasets } = useQuery({ queryKey: qk.datasets, queryFn: fetchDatasets });
+  const { data: datasets } = useQuery({ queryKey: qk.datasetsList(1, 5, false), queryFn: () => fetchDatasets(1, 5, false) });
+  const canManageDatasets = user?.role === "admin";
+  const [name, setName] = useState(user?.name ?? "");
   const [notifications, setNotifications] = useState(true);
   const [horizon, setHorizon] = useState("30");
   const [holdingCost, setHoldingCost] = useState("0.15");
@@ -27,6 +29,16 @@ const Settings = () => {
     onSuccess: (res) => {
       queryClient.setQueryData(qk.settings, res.settings);
       toast({ title: "Settings updated" });
+    },
+  });
+  const profileMutation = useMutation({
+    mutationFn: updateProfile,
+    onSuccess: async () => {
+      await refreshSession();
+      toast({ title: "Profile updated" });
+    },
+    onError: (error) => {
+      toast({ title: "Profile update failed", description: error instanceof Error ? error.message : "Unable to update profile.", variant: "destructive" });
     },
   });
   const passwordMutation = useMutation({
@@ -56,6 +68,18 @@ const Settings = () => {
       toast({ title: "Dataset deleted" });
     },
   });
+  const archiveMutation = useMutation({
+    mutationFn: ({ datasetId, archived }: { datasetId: string; archived: boolean }) => archiveDataset(datasetId, archived),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: qk.datasets });
+      queryClient.invalidateQueries({ queryKey: qk.forecastMeta });
+      toast({ title: variables.archived ? "Dataset archived" : "Dataset restored" });
+    },
+  });
+
+  useEffect(() => {
+    setName(user?.name ?? "");
+  }, [user?.name]);
 
   useEffect(() => {
     if (settings) {
@@ -79,6 +103,10 @@ const Settings = () => {
     passwordMutation.mutate({ current: currentPassword, next: newPassword });
   };
 
+  const handleProfileUpdate = () => {
+    profileMutation.mutate(name);
+  };
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
@@ -93,6 +121,10 @@ const Settings = () => {
           <h3 className="text-sm font-semibold text-foreground">User Settings</h3>
         </div>
         <div className="space-y-2">
+          <Label className="text-foreground text-sm">Full Name</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} className="bg-secondary border-border text-foreground" />
+        </div>
+        <div className="space-y-2">
           <Label className="text-foreground text-sm">Email</Label>
           <Input value={user?.email ?? ""} className="bg-secondary border-border text-foreground" disabled />
         </div>
@@ -104,9 +136,14 @@ const Settings = () => {
           <Label className="text-foreground text-sm">New Password</Label>
           <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" className="bg-secondary border-border text-foreground" />
         </div>
+        <div className="flex gap-2">
+        <Button size="sm" variant="outline" onClick={handleProfileUpdate} disabled={profileMutation.isPending || !name.trim()}>
+          {profileMutation.isPending ? "Saving..." : "Save Profile"}
+        </Button>
         <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={handlePasswordUpdate} disabled={passwordMutation.isPending || !currentPassword || !newPassword}>
           {passwordMutation.isPending ? "Updating..." : "Update Password"}
         </Button>
+        </div>
       </div>
 
       {/* Notifications */}
@@ -176,7 +213,7 @@ const Settings = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={item.isActive || activateMutation.isPending}
+                  disabled={!canManageDatasets || item.isActive || activateMutation.isPending}
                   onClick={() => activateMutation.mutate(item.datasetId)}
                 >
                   {item.isActive ? "Active" : "Activate"}
@@ -184,8 +221,16 @@ const Settings = () => {
                 <Button
                   variant="outline"
                   size="sm"
+                  disabled={!canManageDatasets || archiveMutation.isPending}
+                  onClick={() => archiveMutation.mutate({ datasetId: item.datasetId, archived: !item.isArchived })}
+                >
+                  {item.isArchived ? "Restore" : "Archive"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="border-destructive/50 text-destructive hover:bg-destructive/10 gap-1"
-                  disabled={deleteMutation.isPending}
+                  disabled={!canManageDatasets || deleteMutation.isPending}
                   onClick={() => deleteMutation.mutate(item.datasetId)}
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Delete

@@ -9,6 +9,8 @@ import ForecastResults from "./ForecastResults";
 import InventoryRecommendations from "./InventoryRecommendations";
 import PromotionAnalysis from "./PromotionAnalysis";
 import ProductGraph from "./ProductGraph";
+import Monitoring from "./Monitoring";
+import Datasets from "./Datasets";
 import Settings from "./Settings";
 
 const Dashboard = () => {
@@ -39,6 +41,8 @@ const Dashboard = () => {
               <Route path="inventory" element={<InventoryRecommendations />} />
               <Route path="promotions" element={<PromotionAnalysis />} />
               <Route path="graph" element={<ProductGraph />} />
+              <Route path="monitoring" element={<Monitoring />} />
+              <Route path="datasets" element={<Datasets />} />
               <Route path="settings" element={<Settings />} />
             </Routes>
           </main>

@@ -126,13 +126,15 @@ export type DatasetRecord = {
   suggestedMapping: Record<string, string>;
   normalizedPath?: string | null;
   isActive?: boolean;
+  isArchived?: boolean;
+  archivedAt?: string | null;
   error?: string | null;
   validation?: DatasetValidation;
 };
 
 export type UploadResponse = DatasetRecord;
 export type DatasetStatusResponse = DatasetRecord;
-export type DatasetListResponse = { items: DatasetRecord[]; activeDatasetId?: string | null };
+export type DatasetListResponse = { items: DatasetRecord[]; activeDatasetId?: string | null; page: number; pageSize: number; total: number; includeArchived: boolean };
 export type DeleteDatasetResponse = { deleted: boolean; dataset: DatasetRecord; activeDatasetId?: string | null };
 
 export type RlRewardPoint = { episode: number; reward: number; baseline: number };
@@ -237,14 +239,28 @@ export type MonitoringStatusResponse = {
   driftSeverity: "low" | "medium" | "high" | "critical";
   topDriftFeatures: DriftFeature[];
   alerts: MonitoringAlert[];
+  history: DriftHistoryEntry[];
 };
 export type Settings = { forecastHorizon: number; holdingCost: number; stockoutCost: number; notifications: boolean };
 export type UpdateSettingsResponse = { updated: boolean; settings: Settings };
-export type AuthUser = { name: string; email: string; createdAt?: string | null; lastLoginAt?: string | null };
+export type AuthUser = { name: string; email: string; role?: string; createdAt?: string | null; lastLoginAt?: string | null };
 export type AuthSessionResponse = { token: string; user: AuthUser; createdAt?: string };
 export type AuthPasswordResponse = { updated: boolean; user: AuthUser };
+export type AuthProfileResponse = { updated: boolean; user: AuthUser };
 export type ProductSummary = { store_id: string; product_id: string; units_sold: number };
 export type ProductsResponse = { items: ProductSummary[] };
+export type DriftHistoryEntry = {
+  scannedAt: string;
+  severity: "low" | "medium" | "high" | "critical";
+  featureCount: number;
+  observationCount: number;
+  target?: DriftFeature | null;
+  alerts: MonitoringAlert[];
+};
+export type DriftHistoryResponse = { items: DriftHistoryEntry[] };
+export type DriftScanResponse = { report: DriftReportResponse; entry: DriftHistoryEntry };
+export type AuditEvent = { timestamp: string; action: string; actor?: string | null; target?: string | null; details: Record<string, unknown> };
+export type AuditLogResponse = { items: AuditEvent[] };
 
 export type DashboardSummaryPoint = { day: string; sales: number; demand: number };
 export type DashboardInventoryPoint = { day: string; level: number };
@@ -272,12 +288,15 @@ export const qk = {
   explainabilitySummary: ["explainabilitySummary"] as const,
   datasetStatus: (datasetId: string) => ["datasetStatus", datasetId] as const,
   datasets: ["datasets"] as const,
+  datasetsList: (page = 1, pageSize = 50, includeArchived = false) => ["datasets", page, pageSize, includeArchived] as const,
   settings: ["settings"] as const,
   authSession: ["authSession"] as const,
   forecastMeta: ["forecastMeta"] as const,
   orderScenario: (storeId: string, productId: string, demandScale: number) => ["orderScenario", storeId, productId, demandScale] as const,
   driftReport: ["driftReport"] as const,
   monitoringStatus: ["monitoringStatus"] as const,
+  driftHistory: ["driftHistory"] as const,
+  auditLog: ["auditLog"] as const,
 };
 
 export function fetchKpis() {
@@ -374,6 +393,18 @@ export function fetchMonitoringStatus() {
   return apiGet<MonitoringStatusResponse>("/api/v1/monitoring/status");
 }
 
+export function fetchDriftHistory(limit = 20) {
+  return apiGet<DriftHistoryResponse>(`/api/v1/drift/history?limit=${limit}`);
+}
+
+export function runDriftScan() {
+  return apiSendJson<DriftScanResponse>("/api/v1/drift/scan", "POST");
+}
+
+export function fetchAuditLog(limit = 50) {
+  return apiGet<AuditLogResponse>(`/api/v1/audit/logs?limit=${limit}`);
+}
+
 export function uploadDataset(file: File, columnMapping?: Record<string, string>) {
   const fd = new FormData();
   fd.append("file", file);
@@ -387,8 +418,9 @@ export function fetchDatasetStatus(datasetId: string) {
   return apiGet<DatasetStatusResponse>(`/api/v1/datasets/${encodeURIComponent(datasetId)}/status`);
 }
 
-export function fetchDatasets() {
-  return apiGet<DatasetListResponse>("/api/v1/datasets");
+export function fetchDatasets(page = 1, pageSize = 50, includeArchived = false) {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), include_archived: String(includeArchived) });
+  return apiGet<DatasetListResponse>(`/api/v1/datasets?${params.toString()}`);
 }
 
 export async function activateDataset(datasetId: string) {
@@ -397,6 +429,11 @@ export async function activateDataset(datasetId: string) {
 
 export function deleteDataset(datasetId: string) {
   return apiSendJson<DeleteDatasetResponse>(`/api/v1/datasets/${encodeURIComponent(datasetId)}`, "DELETE");
+}
+
+export function archiveDataset(datasetId: string, archived = true) {
+  const suffix = archived ? "" : "?archived=false";
+  return apiSendJson<DatasetRecord>(`/api/v1/datasets/${encodeURIComponent(datasetId)}/archive${suffix}`, "POST");
 }
 
 export function fetchSettings() {
@@ -425,4 +462,8 @@ export function logOut() {
 
 export function updatePassword(currentPassword: string, newPassword: string) {
   return apiSendJson<AuthPasswordResponse>("/api/v1/auth/password", "PUT", { currentPassword, newPassword });
+}
+
+export function updateProfile(name: string) {
+  return apiSendJson<AuthProfileResponse>("/api/v1/auth/profile", "PUT", { name });
 }

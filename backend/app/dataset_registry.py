@@ -59,6 +59,8 @@ class DatasetRecord:
     suggestedMapping: Dict[str, str]
     normalizedPath: Optional[str] = None
     isActive: bool = False
+    isArchived: bool = False
+    archivedAt: Optional[str] = None
     error: Optional[str] = None
     validation: Optional[Dict[str, Any]] = None
 
@@ -77,6 +79,8 @@ class DatasetRecord:
             "suggestedMapping": self.suggestedMapping,
             "normalizedPath": self.normalizedPath,
             "isActive": self.isActive,
+            "isArchived": self.isArchived,
+            "archivedAt": self.archivedAt,
             "error": self.error,
             "validation": self.validation or {},
         }
@@ -96,11 +100,24 @@ def _write_registry(data: Dict[str, Dict[str, Any]]) -> None:
     REGISTRY_PATH.write_text(json.dumps(data, indent=2, sort_keys=True))
 
 
-def list_datasets() -> List[Dict[str, Any]]:
+def list_datasets(page: int = 1, page_size: int = 50, include_archived: bool = False) -> List[Dict[str, Any]]:
     data = _read_registry()
     rows = list(data.values())
+    if not include_archived:
+        rows = [row for row in rows if not row.get("isArchived")]
     rows.sort(key=lambda row: row.get("uploadedAt", ""), reverse=True)
-    return rows
+    page = max(page, 1)
+    page_size = max(min(page_size, 100), 1)
+    start = (page - 1) * page_size
+    end = start + page_size
+    return rows[start:end]
+
+
+def dataset_count(include_archived: bool = False) -> int:
+    rows = list(_read_registry().values())
+    if not include_archived:
+        rows = [row for row in rows if not row.get("isArchived")]
+    return len(rows)
 
 
 def get_dataset(dataset_id: str) -> Optional[Dict[str, Any]]:
@@ -135,11 +152,33 @@ def activate_dataset(dataset_id: str) -> Dict[str, Any]:
         raise DatasetValidationError("Dataset not found.", details={"datasetId": dataset_id})
     if registry[dataset_id].get("status") != "completed":
         raise DatasetValidationError("Only completed datasets can be activated.", details={"datasetId": dataset_id})
+    if registry[dataset_id].get("isArchived"):
+        raise DatasetValidationError("Archived datasets cannot be activated.", details={"datasetId": dataset_id})
 
     for key, row in registry.items():
         row["isActive"] = key == dataset_id
     _write_registry(registry)
     _write_active_dataset(dataset_id)
+    return registry[dataset_id]
+
+
+def archive_dataset(dataset_id: str, archived: bool = True) -> Dict[str, Any]:
+    registry = _read_registry()
+    if dataset_id not in registry:
+        raise DatasetValidationError("Dataset not found.", details={"datasetId": dataset_id})
+    record = registry[dataset_id]
+    record["isArchived"] = archived
+    record["archivedAt"] = datetime.now(timezone.utc).isoformat() if archived else None
+    if archived and record.get("isActive"):
+        record["isActive"] = False
+        if ACTIVE_DATASET_PATH.exists():
+            ACTIVE_DATASET_PATH.unlink()
+        replacement = next((row for row in sorted(registry.values(), key=lambda row: row.get("uploadedAt", ""), reverse=True) if row.get("status") == "completed" and not row.get("isArchived") and row.get("datasetId") != dataset_id), None)
+        if replacement:
+            replacement_id = str(replacement["datasetId"])
+            registry[replacement_id]["isActive"] = True
+            _write_active_dataset(replacement_id)
+    _write_registry(registry)
     return registry[dataset_id]
 
 
@@ -160,7 +199,7 @@ def delete_dataset(dataset_id: str) -> Dict[str, Any]:
     if active_dataset_id == dataset_id:
         if ACTIVE_DATASET_PATH.exists():
             ACTIVE_DATASET_PATH.unlink()
-        replacement = next((row for row in sorted(registry.values(), key=lambda row: row.get("uploadedAt", ""), reverse=True) if row.get("status") == "completed"), None)
+        replacement = next((row for row in sorted(registry.values(), key=lambda row: row.get("uploadedAt", ""), reverse=True) if row.get("status") == "completed" and not row.get("isArchived")), None)
         for row in registry.values():
             row["isActive"] = False
         if replacement:
@@ -310,6 +349,8 @@ def _create_record(
     suggested_mapping: Dict[str, str],
     normalized_path: Optional[Path] = None,
     is_active: bool = False,
+    is_archived: bool = False,
+    archived_at: Optional[str] = None,
     error: Optional[str] = None,
     validation: Optional[Dict[str, Any]] = None,
 ) -> DatasetRecord:
@@ -327,6 +368,8 @@ def _create_record(
         suggestedMapping=suggested_mapping,
         normalizedPath=str(normalized_path) if normalized_path else None,
         isActive=is_active,
+        isArchived=is_archived,
+        archivedAt=archived_at,
         error=error,
         validation=validation,
     )

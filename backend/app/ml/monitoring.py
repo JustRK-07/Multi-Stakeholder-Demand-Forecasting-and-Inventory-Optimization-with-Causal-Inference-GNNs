@@ -7,7 +7,7 @@ import pandas as pd
 
 from ..dataset_registry import get_active_dataset
 from .data import resolve_data_path, load_groceries_sales
-from .drift_monitor import generate_drift_report
+from .drift_monitor import generate_drift_report, list_drift_history
 from .forecast_model import training_summary
 
 
@@ -112,4 +112,5 @@ def model_status() -> Dict[str, Any]:
         "driftSeverity": drift["summary"]["severity"],
         "topDriftFeatures": drift["features"][:3],
         "alerts": alerts + drift["alerts"][:3],
+        "history": list_drift_history(limit=5),
     }

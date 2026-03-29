@@ -8,7 +8,9 @@ import {
   Megaphone,
   LayoutDashboard,
   Activity,
+  Database,
 } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -35,12 +37,16 @@ const analyticsItems = [
 ];
 
 const systemItems = [
+  { title: "Monitoring", url: "/dashboard/monitoring", icon: Activity },
+  { title: "Datasets", url: "/dashboard/datasets", icon: Database },
   { title: "Settings", url: "/dashboard/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
+  const { user } = useAuth();
   const collapsed = state === "collapsed";
+  const visibleSystemItems = user?.role === "admin" ? systemItems : systemItems.filter((item) => item.title === "Settings");
 
   const renderGroup = (label: string, items: typeof mainItems) => (
     <SidebarGroup key={label}>
@@ -85,7 +91,7 @@ export function AppSidebar() {
         </div>
         {renderGroup("Main", mainItems)}
         {renderGroup("Analytics", analyticsItems)}
-        {renderGroup("System", systemItems)}
+        {renderGroup("System", visibleSystemItems)}
       </SidebarContent>
     </Sidebar>
   );

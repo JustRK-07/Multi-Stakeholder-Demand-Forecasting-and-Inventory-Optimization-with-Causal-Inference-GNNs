@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { fetchAuthSession, logIn, logOut, signUp, type AuthUser } from "@/api/queries";
-import { ApiRequestError, getAuthToken, setAuthToken } from "@/api/client";
+import { AUTH_EXPIRED_EVENT, ApiRequestError, getAuthToken, setAuthToken } from "@/api/client";
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -8,6 +8,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshSession: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -16,19 +17,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const refreshSession = async () => {
+    const token = getAuthToken();
+    if (!token) {
+      setUser(null);
+      return;
+    }
+    const session = await fetchAuthSession();
+    setUser(session.user);
+  };
+
   useEffect(() => {
     const token = getAuthToken();
     if (!token) {
       setLoading(false);
       return;
     }
-    fetchAuthSession()
-      .then((session) => setUser(session.user))
+    refreshSession()
       .catch(() => {
         setAuthToken(null);
         setUser(null);
       })
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const onExpired = () => setUser(null);
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
   }, []);
 
   const handleLogin = async (email: string, password: string) => {
@@ -54,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  return <AuthContext.Provider value={{ user, loading, login: handleLogin, signup: handleSignup, logout: handleLogout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, loading, login: handleLogin, signup: handleSignup, logout: handleLogout, refreshSession }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

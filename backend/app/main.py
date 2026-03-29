@@ -7,14 +7,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .api_response import err, ok
+from .audit_log import append_audit_event, list_audit_events
 from .auth_store import AuthError, create_session, create_user, delete_session, get_session, update_password
+from .auth_store import update_profile as update_user_profile
 from .dashboard_metrics import (
     compute_dashboard_summary,
     compute_inventory_items,
     compute_kpis,
     compute_stores,
 )
-from .dataset_registry import activate_dataset, delete_dataset, get_active_dataset, get_dataset, list_datasets, register_dataset_upload
+from .dataset_registry import activate_dataset, archive_dataset, dataset_count, delete_dataset, get_active_dataset, get_dataset, list_datasets, register_dataset_upload
 from .ml.forecast_model import forecast as forecast_units
 from .ml.forecast_model import forecast_multi, recent_actuals
 from .ml.forecast_model import training_summary
@@ -27,7 +29,7 @@ from .ml.causal_engine import available_promotion_segments, estimate_promo_effec
 from .ml.federated_sim import simulate_federated_rounds
 from .ml.shap_explain import compute_shap_features
 from .ml.shap_explain import build_explainability_summary
-from .ml.drift_monitor import export_snapshot, generate_drift_report
+from .ml.drift_monitor import export_snapshot, generate_drift_report, list_drift_history, record_drift_scan
 from .ml.data import list_grocery_products
 from .ml.monitoring import model_status
 from .settings_store import load_settings, save_settings
@@ -54,6 +56,19 @@ def _extract_token(authorization: Optional[str]) -> Optional[str]:
     if scheme.lower() != "bearer" or not token:
         return None
     return token.strip()
+
+
+def _session_email(authorization: Optional[str]) -> Optional[str]:
+    token = _extract_token(authorization)
+    session = get_session(token or "")
+    if not session:
+        return None
+    return str(session["user"]["email"])
+
+
+def _session_from_header(authorization: Optional[str]) -> Optional[Dict[str, Any]]:
+    token = _extract_token(authorization)
+    return get_session(token or "")
 
 
 @app.get("/health")
@@ -92,8 +107,10 @@ def auth_session(authorization: Optional[str] = Header(default=None)) -> Dict[st
 @app.post("/api/v1/auth/logout")
 def logout(authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
     token = _extract_token(authorization)
+    actor = _session_email(authorization)
     if not token or not delete_session(token):
         return JSONResponse(status_code=401, content=err("UNAUTHORIZED", "A valid session is required."))
+    append_audit_event("auth.logout", actor=actor, target=actor)
     return ok({"loggedOut": True})
 
 
@@ -109,6 +126,19 @@ def change_password(payload: Dict[str, Any], authorization: Optional[str] = Head
             str(payload.get("currentPassword", "")),
             str(payload.get("newPassword", "")),
         )
+    except AuthError as exc:
+        return JSONResponse(status_code=400, content=err(exc.code, exc.message, details=exc.details))
+    return ok({"updated": True, "user": user})
+
+
+@app.put("/api/v1/auth/profile")
+def update_profile(payload: Dict[str, Any], authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    token = _extract_token(authorization)
+    session = get_session(token or "")
+    if not session:
+        return JSONResponse(status_code=401, content=err("UNAUTHORIZED", "A valid session is required."))
+    try:
+        user = update_user_profile(session["user"]["email"], name=str(payload.get("name", "")))
     except AuthError as exc:
         return JSONResponse(status_code=400, content=err(exc.code, exc.message, details=exc.details))
     return ok({"updated": True, "user": user})
@@ -331,7 +361,11 @@ def get_products(store_id: Optional[str] = None, limit: int = 50) -> Dict[str, A
 async def upload_dataset(
     file: UploadFile = File(...),
     column_mapping: Optional[str] = Form(default=None),
+    authorization: Optional[str] = Header(default=None),
 ) -> Dict[str, Any]:
+    session = _session_from_header(authorization)
+    if not session:
+        return JSONResponse(status_code=401, content=err("UNAUTHORIZED", "A valid session is required."))
     mapping: Optional[Dict[str, str]] = None
     if column_mapping:
         import json
@@ -348,6 +382,7 @@ async def upload_dataset(
 
     content = await file.read()
     record = register_dataset_upload(file.filename or "uploaded_dataset", content, mapping)
+    append_audit_event("dataset.upload", actor=session["user"]["email"], target=record["datasetId"], details={"filename": record["filename"], "status": record["status"]})
     return ok(record)
 
 
@@ -363,13 +398,27 @@ def dataset_status(dataset_id: str) -> Dict[str, Any]:
 
 
 @app.get("/api/v1/datasets")
-def get_datasets() -> Dict[str, Any]:
+def get_datasets(page: int = 1, page_size: int = 50, include_archived: bool = False) -> Dict[str, Any]:
     active_dataset = get_active_dataset()
-    return ok({"items": list_datasets(), "activeDatasetId": active_dataset.get("datasetId") if active_dataset else None})
+    return ok(
+        {
+            "items": list_datasets(page=page, page_size=page_size, include_archived=include_archived),
+            "activeDatasetId": active_dataset.get("datasetId") if active_dataset else None,
+            "page": page,
+            "pageSize": page_size,
+            "total": dataset_count(include_archived=include_archived),
+            "includeArchived": include_archived,
+        }
+    )
 
 
 @app.post("/api/v1/datasets/{dataset_id}/activate")
-def activate_uploaded_dataset(dataset_id: str) -> Dict[str, Any]:
+def activate_uploaded_dataset(dataset_id: str, authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    session = _session_from_header(authorization)
+    if not session:
+        return JSONResponse(status_code=401, content=err("UNAUTHORIZED", "A valid session is required."))
+    if session["user"].get("role") != "admin":
+        return JSONResponse(status_code=403, content=err("FORBIDDEN", "Admin role required."))
     try:
         record = activate_dataset(dataset_id)
     except Exception as exc:
@@ -377,11 +426,17 @@ def activate_uploaded_dataset(dataset_id: str) -> Dict[str, Any]:
             status_code=404,
             content=err("DATASET_ACTIVATION_FAILED", str(exc), details={"datasetId": dataset_id}),
         )
+    append_audit_event("dataset.activate", actor=session["user"]["email"], target=dataset_id)
     return ok(record)
 
 
 @app.delete("/api/v1/datasets/{dataset_id}")
-def remove_dataset(dataset_id: str) -> Dict[str, Any]:
+def remove_dataset(dataset_id: str, authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    session = _session_from_header(authorization)
+    if not session:
+        return JSONResponse(status_code=401, content=err("UNAUTHORIZED", "A valid session is required."))
+    if session["user"].get("role") != "admin":
+        return JSONResponse(status_code=403, content=err("FORBIDDEN", "Admin role required."))
     try:
         record = delete_dataset(dataset_id)
     except Exception as exc:
@@ -389,7 +444,26 @@ def remove_dataset(dataset_id: str) -> Dict[str, Any]:
             status_code=404,
             content=err("DATASET_DELETE_FAILED", str(exc), details={"datasetId": dataset_id}),
         )
+    append_audit_event("dataset.delete", actor=session["user"]["email"], target=dataset_id, details={"filename": record.get("filename")})
     return ok({"deleted": True, "dataset": record, "activeDatasetId": get_active_dataset().get("datasetId") if get_active_dataset() else None})
+
+
+@app.post("/api/v1/datasets/{dataset_id}/archive")
+def archive_uploaded_dataset(dataset_id: str, archived: bool = True, authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    session = _session_from_header(authorization)
+    if not session:
+        return JSONResponse(status_code=401, content=err("UNAUTHORIZED", "A valid session is required."))
+    if session["user"].get("role") != "admin":
+        return JSONResponse(status_code=403, content=err("FORBIDDEN", "Admin role required."))
+    try:
+        record = archive_dataset(dataset_id, archived=archived)
+    except Exception as exc:
+        return JSONResponse(
+            status_code=404,
+            content=err("DATASET_ARCHIVE_FAILED", str(exc), details={"datasetId": dataset_id}),
+        )
+    append_audit_event("dataset.archive" if archived else "dataset.restore", actor=session["user"]["email"], target=dataset_id)
+    return ok(record)
 
 
 @app.get("/api/v1/settings")
@@ -414,6 +488,26 @@ def get_drift_report(baseline_days: int = 60, recent_days: int = 14, rows: int =
     return ok(generate_drift_report(baseline_days=baseline_days, recent_days=recent_days, rows=rows))
 
 
+@app.post("/api/v1/drift/scan")
+def scan_drift(baseline_days: int = 60, recent_days: int = 14, rows: int = 5000) -> Dict[str, Any]:
+    return ok(record_drift_scan(baseline_days=baseline_days, recent_days=recent_days, rows=rows))
+
+
+@app.get("/api/v1/drift/history")
+def get_drift_history(limit: int = 20) -> Dict[str, Any]:
+    return ok({"items": list_drift_history(limit=limit)})
+
+
 @app.get("/api/v1/monitoring/status")
 def get_monitoring_status() -> Dict[str, Any]:
     return ok(model_status())
+
+
+@app.get("/api/v1/audit/logs")
+def get_audit_logs(limit: int = 50, authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    session = _session_from_header(authorization)
+    if not session:
+        return JSONResponse(status_code=401, content=err("UNAUTHORIZED", "A valid session is required."))
+    if session["user"].get("role") != "admin":
+        return JSONResponse(status_code=403, content=err("FORBIDDEN", "Admin role required."))
+    return ok({"items": list_audit_events(limit=limit)})

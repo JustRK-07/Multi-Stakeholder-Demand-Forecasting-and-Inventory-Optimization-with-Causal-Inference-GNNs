@@ -1,22 +1,17 @@
 # Remaining Work
 
 ## Platform
-- Add role-based authorization instead of route-level session gating only.
-- Move file-backed users, sessions, settings, and dataset registry to a database.
-- Add audit logging for login, password change, dataset activation, and dataset deletion.
+- Move file-backed users, sessions, settings, datasets, and audit logs to a database-backed persistence layer.
+- Expand role-based authorization beyond the current admin/analyst controls.
 
-## API
-- Add route-level FastAPI tests for auth, dataset lifecycle, and analytics endpoints.
-- Add pagination and archive semantics for dataset history.
-- Add background jobs for model retraining, drift scans, and long-running uploads.
+## API / Jobs
+- Add a background job runner for long-running uploads, retraining, and scheduled drift scans.
+- Decide whether to harden all analytics endpoints behind backend auth checks or keep them open for demo mode.
 
 ## ML / MLOps
 - Promote local artifacts into a versioned model registry.
 - Add scheduled retraining and benchmark reporting per dataset version.
-- Add historical drift tracking and alert delivery instead of point-in-time monitoring only.
 - Replace the current federated approximation with a true cross-client training workflow if federated learning remains in scope.
 
 ## Frontend
-- Add dedicated dataset history and monitoring pages instead of dashboard-only summaries.
-- Add richer frontend integration tests for auth, upload, settings, and dashboard flows.
-- Add user profile editing and session-expiry handling.
+- Add deeper end-to-end UI tests around dataset history, monitoring, and multi-user role behavior.

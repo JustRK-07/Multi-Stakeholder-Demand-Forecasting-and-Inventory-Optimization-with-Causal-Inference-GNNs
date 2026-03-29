@@ -16,6 +16,7 @@ export class ApiRequestError extends Error {
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:8000";
 const AUTH_TOKEN_KEY = "retailcast.auth.token";
+export const AUTH_EXPIRED_EVENT = "retailcast.auth.expired";
 
 export function apiBaseUrl(): string {
   const env = (import.meta.env ?? {}) as unknown as { VITE_API_BASE_URL?: string };
@@ -31,6 +32,13 @@ export function setAuthToken(token: string | null) {
   if (typeof window === "undefined") return;
   if (token) window.localStorage.setItem(AUTH_TOKEN_KEY, token);
   else window.localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+function handleUnauthorized() {
+  setAuthToken(null);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+  }
 }
 
 function withAuthHeaders(init?: RequestInit): HeadersInit {
@@ -57,6 +65,7 @@ export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
+    if (res.status === 401) handleUnauthorized();
     throw new ApiRequestError(`HTTP ${res.status} calling ${path}`, "HTTP_ERROR", { status: res.status, body: text });
   }
   if (!json) throw new ApiRequestError(`Empty response calling ${path}`, "EMPTY_RESPONSE");
@@ -82,6 +91,7 @@ export async function apiPostForm<T>(path: string, formData: FormData, init?: Re
   }
 
   if (!res.ok) {
+    if (res.status === 401) handleUnauthorized();
     throw new ApiRequestError(`HTTP ${res.status} calling ${path}`, "HTTP_ERROR", { status: res.status, body: text });
   }
   if (!json) throw new ApiRequestError(`Empty response calling ${path}`, "EMPTY_RESPONSE");
@@ -110,6 +120,7 @@ export async function apiSendJson<T>(path: string, method: "POST" | "PUT" | "DEL
   }
 
   if (!res.ok) {
+    if (res.status === 401) handleUnauthorized();
     throw new ApiRequestError(`HTTP ${res.status} calling ${path}`, "HTTP_ERROR", { status: res.status, body: text });
   }
   if (!json) throw new ApiRequestError(`Empty response calling ${path}`, "EMPTY_RESPONSE");

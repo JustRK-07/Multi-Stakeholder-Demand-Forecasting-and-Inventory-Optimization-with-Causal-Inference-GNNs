@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+import json
 
 from .data import DEFAULT_DATA_PATH, load_groceries_sales
 
@@ -12,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[3]
 ARTIFACT_DIR = ROOT / "backend" / "app" / "ml" / "artifacts"
 ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
 SNAPSHOT_PATH = ARTIFACT_DIR / "drift_snapshot.csv"
+DRIFT_HISTORY_PATH = ARTIFACT_DIR / "drift_history.json"
 
 
 def export_snapshot(path: Optional[Path] = None, rows: int = 5000) -> Path:
@@ -151,3 +153,39 @@ def generate_drift_report(
             "observationCount": int(len(df)),
         },
     }
+
+
+def _read_history() -> List[Dict[str, Any]]:
+    if not DRIFT_HISTORY_PATH.exists():
+        return []
+    try:
+        payload = json.loads(DRIFT_HISTORY_PATH.read_text())
+    except Exception:
+        return []
+    return payload if isinstance(payload, list) else []
+
+
+def _write_history(items: List[Dict[str, Any]]) -> None:
+    DRIFT_HISTORY_PATH.write_text(json.dumps(items, indent=2))
+
+
+def record_drift_scan(baseline_days: int = 60, recent_days: int = 14, rows: int = 5000) -> Dict[str, Any]:
+    report = generate_drift_report(baseline_days=baseline_days, recent_days=recent_days, rows=rows)
+    history = _read_history()
+    entry = {
+        "scannedAt": pd.Timestamp.utcnow().isoformat(),
+        "severity": report["summary"]["severity"],
+        "featureCount": report["summary"]["featureCount"],
+        "observationCount": report["summary"]["observationCount"],
+        "target": report.get("target"),
+        "alerts": report.get("alerts", []),
+    }
+    history.append(entry)
+    history = history[-100:]
+    _write_history(history)
+    return {"report": report, "entry": entry}
+
+
+def list_drift_history(limit: int = 20) -> List[Dict[str, Any]]:
+    history = _read_history()
+    return list(reversed(history[-limit:]))
