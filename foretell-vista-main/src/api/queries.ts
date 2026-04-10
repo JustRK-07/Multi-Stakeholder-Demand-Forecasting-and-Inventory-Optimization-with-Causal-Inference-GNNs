@@ -243,7 +243,7 @@ export type MonitoringStatusResponse = {
 };
 export type Settings = { forecastHorizon: number; holdingCost: number; stockoutCost: number; notifications: boolean };
 export type UpdateSettingsResponse = { updated: boolean; settings: Settings };
-export type AuthUser = { name: string; email: string; role?: string; createdAt?: string | null; lastLoginAt?: string | null };
+export type AuthUser = { name: string; email: string; role?: string; storeType?: string; assignedModelId?: string; modelLastUpdated?: string | null; createdAt?: string | null; lastLoginAt?: string | null };
 export type AuthSessionResponse = { token: string; user: AuthUser; createdAt?: string };
 export type AuthPasswordResponse = { updated: boolean; user: AuthUser };
 export type AuthProfileResponse = { updated: boolean; user: AuthUser };
@@ -444,8 +444,8 @@ export async function updateSettings(payload: Settings) {
   return apiSendJson<UpdateSettingsResponse>("/api/v1/settings", "PUT", payload);
 }
 
-export function signUp(name: string, email: string, password: string) {
-  return apiSendJson<AuthSessionResponse>("/api/v1/auth/signup", "POST", { name, email, password });
+export function signUp(name: string, email: string, password: string, storeType: string) {
+  return apiSendJson<AuthSessionResponse>("/api/v1/auth/signup", "POST", { name, email, password, storeType });
 }
 
 export function logIn(email: string, password: string) {

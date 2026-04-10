@@ -2,13 +2,12 @@ import {
   BarChart3,
   TrendingUp,
   Package,
-  Upload,
   Settings,
   Network,
   Megaphone,
   LayoutDashboard,
   Activity,
-  Database,
+  Plug,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { NavLink } from "@/components/NavLink";
@@ -26,7 +25,6 @@ import {
 
 const mainItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Upload Dataset", url: "/dashboard/upload", icon: Upload },
 ];
 
 const analyticsItems = [
@@ -38,7 +36,7 @@ const analyticsItems = [
 
 const systemItems = [
   { title: "Monitoring", url: "/dashboard/monitoring", icon: Activity },
-  { title: "Datasets", url: "/dashboard/datasets", icon: Database },
+  { title: "Data Sources", url: "/dashboard/data-sources", icon: Plug },
   { title: "Settings", url: "/dashboard/settings", icon: Settings },
 ];
 

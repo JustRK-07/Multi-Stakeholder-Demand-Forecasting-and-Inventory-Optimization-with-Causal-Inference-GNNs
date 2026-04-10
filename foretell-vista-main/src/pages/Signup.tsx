@@ -4,6 +4,7 @@ import { BarChart3, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
 
@@ -11,6 +12,7 @@ const Signup = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [storeType, setStoreType] = useState("");
   const [showPw, setShowPw] = useState(false);
   const navigate = useNavigate();
   const { signup } = useAuth();
@@ -18,8 +20,18 @@ const Signup = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!storeType) {
+      toast({
+        title: "Store type required",
+        description: "Please select your store type to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
-      await signup(name, email, password);
+      await signup(name, email, password, storeType);
       toast({ title: "Account created successfully" });
       navigate("/dashboard");
     } catch (error) {
@@ -66,6 +78,22 @@ const Signup = () => {
               required
               className="bg-secondary border-border text-foreground"
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="storeType" className="text-foreground text-sm">Store Type</Label>
+            <Select value={storeType} onValueChange={setStoreType}>
+              <SelectTrigger className="bg-secondary border-border text-foreground">
+                <SelectValue placeholder="Select your store type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="grocery">Grocery & Supermarkets</SelectItem>
+                <SelectItem value="fashion">Fashion & Apparel</SelectItem>
+                <SelectItem value="electronics">Electronics & Tech</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              We'll assign a pre-trained model for your store type. You'll get instant forecasts!
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="password" className="text-foreground text-sm">Password</Label>

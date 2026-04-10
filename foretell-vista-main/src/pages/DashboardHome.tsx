@@ -10,14 +10,43 @@ import { FederatedPanel } from "@/components/Federated/FederatedPanel";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDashboardSummary, qk } from "@/api/queries";
+import { useAuth } from "@/components/AuthProvider";
+import { AlertCircle } from "lucide-react";
 
 const DashboardHome = () => {
+  const { user } = useAuth();
   const { data } = useQuery({ queryKey: qk.dashboardSummary, queryFn: fetchDashboardSummary });
   const salesTrend = data?.salesTrend ?? [];
   const inventoryLevels = data?.inventoryTrend ?? [];
 
+  const getStoreTypeName = (storeType?: string) => {
+    const names: Record<string, string> = {
+      grocery: "Grocery & Supermarkets",
+      fashion: "Fashion & Apparel",
+      electronics: "Electronics & Tech",
+    };
+    return names[storeType || ""] || storeType || "Unknown";
+  };
+
   return (
     <div className="space-y-4">
+      {user?.storeType && user?.assignedModelId && (
+        <div className="glass-card p-4 border border-primary/20 bg-primary/5">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-foreground text-sm">Your Pre-trained Model</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                <strong>{getStoreTypeName(user.storeType)}</strong> • Model {user.assignedModelId.split("-").pop()}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                No data upload needed! Your forecasts are powered by a pre-trained model optimized for your store type. 
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <KPIPanel />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Sales Trend */}

@@ -4,13 +4,13 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/components/AuthProvider";
 import { Routes, Route } from "react-router-dom";
 import DashboardHome from "./DashboardHome";
-import Upload from "./Upload";
 import ForecastResults from "./ForecastResults";
 import InventoryRecommendations from "./InventoryRecommendations";
 import PromotionAnalysis from "./PromotionAnalysis";
 import ProductGraph from "./ProductGraph";
 import Monitoring from "./Monitoring";
 import Datasets from "./Datasets";
+import DataSources from "./DataSources";
 import Settings from "./Settings";
 
 const Dashboard = () => {
@@ -36,13 +36,13 @@ const Dashboard = () => {
           <main className="flex-1 overflow-y-auto scrollbar-thin p-4 md:p-6">
             <Routes>
               <Route index element={<DashboardHome />} />
-              <Route path="upload" element={<Upload />} />
               <Route path="forecast" element={<ForecastResults />} />
               <Route path="inventory" element={<InventoryRecommendations />} />
               <Route path="promotions" element={<PromotionAnalysis />} />
               <Route path="graph" element={<ProductGraph />} />
               <Route path="monitoring" element={<Monitoring />} />
               <Route path="datasets" element={<Datasets />} />
+              <Route path="data-sources" element={<DataSources />} />
               <Route path="settings" element={<Settings />} />
             </Routes>
           </main>

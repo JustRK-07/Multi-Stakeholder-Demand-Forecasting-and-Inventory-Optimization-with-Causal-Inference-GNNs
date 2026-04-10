@@ -1,0 +1,6 @@
+{
+  "forecastHorizon": 30,
+  "holdingCost": 0.15,
+  "notifications": true,
+  "stockoutCost": 1.5
+}

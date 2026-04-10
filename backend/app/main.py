@@ -33,20 +33,63 @@ from .ml.drift_monitor import export_snapshot, generate_drift_report, list_drift
 from .ml.data import list_grocery_products
 from .ml.monitoring import model_status
 from .settings_store import load_settings, save_settings
+from .model_registry import get_model_for_store_type, get_model_id_for_store_type, list_available_models, ModelRegistryError, VALID_STORE_TYPES
+from .database import init_db
+from .ml.forecast_model import load_or_train as load_forecast_model
 
 
 app = FastAPI(title="RetailCast API", version="0.1.0")
 
+# Global model cache (loaded once at startup, not per-request)
+_CACHED_MODELS = {
+    "forecast": None,
+}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://10.59.163.203:8080",
+        "http://0.0.0.0:3000",
+        "http://0.0.0.0:8080",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Initialize database and load models on startup
+@app.on_event("startup")
+def startup_event():
+    import os
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    # Initialize database
+    database_url = os.getenv("DATABASE_URL", "sqlite:///./test.db")
+    init_db(database_url)
+    
+    # Load forecast model into cache (ONE TIME at startup, not per-request)
+    try:
+        logger.info("Loading forecast model at startup...")
+        _CACHED_MODELS["forecast"] = load_forecast_model()
+        logger.info("✓ Forecast model loaded successfully (cached in memory)")
+    except Exception as e:
+        logger.error(f"Failed to load forecast model at startup: {e}")
+        raise
+
+
+def _get_cached_forecast_model():
+    """Get the cached forecast model. Loads on-demand if not cached (fallback for edge cases)."""
+    if _CACHED_MODELS["forecast"] is None:
+        _CACHED_MODELS["forecast"] = load_forecast_model()
+    return _CACHED_MODELS["forecast"]
 
 
 def _extract_token(authorization: Optional[str]) -> Optional[str]:
@@ -79,9 +122,31 @@ def health() -> Dict[str, Any]:
 @app.post("/api/v1/auth/signup")
 def signup(payload: Dict[str, Any]) -> Dict[str, Any]:
     try:
-        user = create_user(str(payload.get("name", "")), str(payload.get("email", "")), str(payload.get("password", "")))
+        store_type = str(payload.get("storeType", "")).lower()
+        
+        if store_type not in VALID_STORE_TYPES:
+            return JSONResponse(
+                status_code=400,
+                content=err(
+                    "INVALID_STORE_TYPE",
+                    f"Store type '{store_type}' not supported.",
+                    details={"valid_types": VALID_STORE_TYPES},
+                ),
+            )
+        
+        model_id = get_model_id_for_store_type(store_type)
+        
+        user = create_user(
+            str(payload.get("name", "")),
+            str(payload.get("email", "")),
+            str(payload.get("password", "")),
+            store_type=store_type,
+            assigned_model_id=model_id,
+        )
         session = create_session(str(payload.get("email", "")), str(payload.get("password", "")))
     except AuthError as exc:
+        return JSONResponse(status_code=400, content=err(exc.code, exc.message, details=exc.details))
+    except ModelRegistryError as exc:
         return JSONResponse(status_code=400, content=err(exc.code, exc.message, details=exc.details))
     return ok({"token": session["token"], "user": user})
 
@@ -165,6 +230,10 @@ def get_forecasts(
 ) -> Dict[str, Any]:
     selected_store_id = store_id
     selected_product_id = product_id
+    
+    # Get cached model (fast - no disk I/O)
+    cached_artifacts = _get_cached_forecast_model()
+    
     def format_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         data: List[Dict[str, Any]] = []
         for row in rows:
@@ -178,7 +247,7 @@ def get_forecasts(
             data.append(item)
         return data
 
-    summary = training_summary()
+    summary = training_summary(artifacts=cached_artifacts)
     payload: Dict[str, Any] = {
         "horizon": horizon,
         "storeId": selected_store_id,
@@ -189,14 +258,14 @@ def get_forecasts(
     }
 
     if multi:
-        horizon_map = forecast_multi(store_id, product_id=product_id, gnn_adjust=gnn_adjust)
+        horizon_map = forecast_multi(store_id, product_id=product_id, gnn_adjust=gnn_adjust, artifacts=cached_artifacts)
         payload["horizons"] = {str(k): format_rows(v) for k, v in horizon_map.items()}
     else:
-        forecast_rows = forecast_units(store_id, horizon=horizon, product_id=product_id, gnn_adjust=gnn_adjust)
+        forecast_rows = forecast_units(store_id, horizon=horizon, product_id=product_id, gnn_adjust=gnn_adjust, artifacts=cached_artifacts)
         payload["data"] = format_rows(forecast_rows)
 
     if include_actuals:
-        actuals = recent_actuals(store_id, product_id, days=10)
+        actuals = recent_actuals(store_id, product_id, days=10, artifacts=cached_artifacts)
         payload["actuals"] = [
             {"date": d["date"].strftime("%b %-d") if "%-d" in datetime.now().strftime("%-d") else d["date"].strftime("%b %d"), "actual": int(round(d["actual"]))}
             for d in actuals
@@ -207,7 +276,8 @@ def get_forecasts(
 
 @app.get("/api/v1/forecast/meta")
 def get_forecast_meta() -> Dict[str, Any]:
-    summary = training_summary()
+    cached_artifacts = _get_cached_forecast_model()
+    summary = training_summary(artifacts=cached_artifacts)
     active_dataset = get_active_dataset()
     return ok(
         {
@@ -511,3 +581,40 @@ def get_audit_logs(limit: int = 50, authorization: Optional[str] = Header(defaul
     if session["user"].get("role") != "admin":
         return JSONResponse(status_code=403, content=err("FORBIDDEN", "Admin role required."))
     return ok({"items": list_audit_events(limit=limit)})
+
+
+@app.get("/api/v1/models/available")
+def get_available_models() -> Dict[str, Any]:
+    """List all available pre-trained models by store type."""
+    return ok({"models": list_available_models()})
+
+
+@app.get("/api/v1/models/my-model")
+def get_my_model(authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Get the pre-trained model assigned to the current user."""
+    session = _session_from_header(authorization)
+    if not session:
+        return JSONResponse(status_code=401, content=err("UNAUTHORIZED", "A valid session is required."))
+    
+    user = session["user"]
+    store_type = user.get("storeType")
+    model_id = user.get("assignedModelId")
+    
+    if not store_type or not model_id:
+        return JSONResponse(
+            status_code=400,
+            content=err("NO_MODEL_ASSIGNED", "User does not have an assigned model."),
+        )
+    
+    try:
+        model_info = get_model_for_store_type(store_type)
+        return ok({
+            "model_id": model_id,
+            "store_type": store_type,
+            "version": model_info.get("version"),
+            "description": model_info.get("description"),
+            "accuracy_metrics": model_info.get("accuracy_metrics"),
+            "assigned_at": user.get("modelLastUpdated"),
+        })
+    except ModelRegistryError as exc:
+        return JSONResponse(status_code=400, content=err(exc.code, exc.message, details=exc.details))

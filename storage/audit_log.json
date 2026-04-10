@@ -1,0 +1,67 @@
+[
+  {
+    "timestamp": "2026-03-27T10:21:03.822702+00:00",
+    "action": "auth.signup",
+    "actor": "analyst@example.com",
+    "target": "analyst@example.com",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-03-27T10:21:03.924330+00:00",
+    "action": "auth.login",
+    "actor": "analyst@example.com",
+    "target": "analyst@example.com",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-03-27T10:21:04.121424+00:00",
+    "action": "auth.password_update",
+    "actor": "analyst@example.com",
+    "target": "analyst@example.com",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-03-27T10:21:04.232404+00:00",
+    "action": "auth.login",
+    "actor": "analyst@example.com",
+    "target": "analyst@example.com",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-10T09:31:27.294993+00:00",
+    "action": "auth.signup",
+    "actor": "rushabh@retailcast.com",
+    "target": "rushabh@retailcast.com",
+    "details": {
+      "storeType": "grocery"
+    }
+  },
+  {
+    "timestamp": "2026-04-10T10:36:16.112087+00:00",
+    "action": "auth.login",
+    "actor": "rushabh@retailcast.com",
+    "target": "rushabh@retailcast.com",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-10T11:45:11.436755+00:00",
+    "action": "auth.login",
+    "actor": "rushabh@retailcast.com",
+    "target": "rushabh@retailcast.com",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-10T11:46:07.925592+00:00",
+    "action": "auth.logout",
+    "actor": "rushabh@retailcast.com",
+    "target": "rushabh@retailcast.com",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-10T11:48:37.134167+00:00",
+    "action": "auth.login",
+    "actor": "rushabh@retailcast.com",
+    "target": "rushabh@retailcast.com",
+    "details": {}
+  }
+]

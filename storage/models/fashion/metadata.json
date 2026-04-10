@@ -1,0 +1,20 @@
+{
+  "model_id": "model-fashion-v1.0",
+  "version": "1.0",
+  "store_type": "fashion",
+  "description": "Pre-trained model for apparel retailers",
+  "created_date": "2024-04-10",
+  "training_data_summary": "5,000+ stores with seasonal patterns",
+  "accuracy_metrics": {
+    "mape": 0.15,
+    "rmse": 8.2,
+    "mae": 5.3
+  },
+  "features": [
+    "date",
+    "store_id",
+    "product_id",
+    "promotion",
+    "category"
+  ]
+}

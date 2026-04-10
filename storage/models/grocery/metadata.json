@@ -1,0 +1,20 @@
+{
+  "model_id": "model-grocery-v1.0",
+  "version": "1.0",
+  "store_type": "grocery",
+  "description": "Pre-trained demand forecasting model for supermarkets",
+  "created_date": "2024-04-10",
+  "training_data_summary": "10,000+ locations, 2+ years of data",
+  "accuracy_metrics": {
+    "mape": 0.12,
+    "rmse": 2.5,
+    "mae": 1.8
+  },
+  "features": [
+    "date",
+    "store_id",
+    "product_id",
+    "promotion",
+    "inventory_level"
+  ]
+}

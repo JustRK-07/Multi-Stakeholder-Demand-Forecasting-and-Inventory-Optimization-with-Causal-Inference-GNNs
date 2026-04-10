@@ -1,0 +1,366 @@
+{
+  "nodes": [
+    {
+      "id": 1,
+      "label": "P0016",
+      "x": 266.240888285349,
+      "y": 329.2274932096189,
+      "size": 40.0,
+      "category": "Anchor",
+      "product_id": "P0016",
+      "total_units": 110560.0
+    },
+    {
+      "id": 2,
+      "label": "P0006",
+      "x": 473.8444385600932,
+      "y": 345.0811062634087,
+      "size": 39.35003617945007,
+      "category": "Anchor",
+      "product_id": "P0006",
+      "total_units": 106967.0
+    },
+    {
+      "id": 3,
+      "label": "P0013",
+      "x": 190.37885364081566,
+      "y": 197.89824167395972,
+      "size": 39.30933429811867,
+      "category": "Anchor",
+      "product_id": "P0013",
+      "total_units": 106742.0
+    },
+    {
+      "id": 4,
+      "label": "P0001",
+      "x": 244.96992652255875,
+      "y": 162.9113640993956,
+      "size": 39.21110709117222,
+      "category": "Anchor",
+      "product_id": "P0001",
+      "total_units": 106199.0
+    },
+    {
+      "id": 5,
+      "label": "P0003",
+      "x": 354.74077409042866,
+      "y": 174.78780012969327,
+      "size": 38.90918958031838,
+      "category": "Anchor",
+      "product_id": "P0003",
+      "total_units": 104530.0
+    },
+    {
+      "id": 6,
+      "label": "P0005",
+      "x": 131.9289593824863,
+      "y": 403.0522101695565,
+      "size": 38.64381331403763,
+      "category": "Anchor",
+      "product_id": "P0005",
+      "total_units": 103063.0
+    },
+    {
+      "id": 7,
+      "label": "P0002",
+      "x": 498.42668768711724,
+      "y": 105.28174659985584,
+      "size": 38.20296671490593,
+      "category": "Anchor",
+      "product_id": "P0002",
+      "total_units": 100626.0
+    },
+    {
+      "id": 8,
+      "label": "P0019",
+      "x": 80.0,
+      "y": 154.02476689551787,
+      "size": 38.06458031837916,
+      "category": "Anchor",
+      "product_id": "P0019",
+      "total_units": 99861.0
+    },
+    {
+      "id": 9,
+      "label": "P0020",
+      "x": 242.63253468094223,
+      "y": 256.4203988091603,
+      "size": 38.0606005788712,
+      "category": "Anchor",
+      "product_id": "P0020",
+      "total_units": 99839.0
+    },
+    {
+      "id": 10,
+      "label": "P0007",
+      "x": 441.71354276167506,
+      "y": 101.1041398310509,
+      "size": 37.93541968162084,
+      "category": "Anchor",
+      "product_id": "P0007",
+      "total_units": 99147.0
+    },
+    {
+      "id": 11,
+      "label": "P0009",
+      "x": 397.2794325023631,
+      "y": 323.3227055530557,
+      "size": 37.89960202604921,
+      "category": "Anchor",
+      "product_id": "P0009",
+      "total_units": 98949.0
+    },
+    {
+      "id": 12,
+      "label": "P0018",
+      "x": 200.5577373731149,
+      "y": 295.23348146629877,
+      "size": 37.849312590448626,
+      "category": "Anchor",
+      "product_id": "P0018",
+      "total_units": 98671.0
+    },
+    {
+      "id": 13,
+      "label": "P0015",
+      "x": 271.2194928716177,
+      "y": 296.66746562562406,
+      "size": 37.56041968162084,
+      "category": "Anchor",
+      "product_id": "P0015",
+      "total_units": 97074.0
+    },
+    {
+      "id": 14,
+      "label": "P0010",
+      "x": 87.73202737013844,
+      "y": 300.4372480486057,
+      "size": 37.556259044862514,
+      "category": "Anchor",
+      "product_id": "P0010",
+      "total_units": 97051.0
+    },
+    {
+      "id": 15,
+      "label": "P0004",
+      "x": 267.78039395246265,
+      "y": 209.22192610486888,
+      "size": 37.502170767004344,
+      "category": "Anchor",
+      "product_id": "P0004",
+      "total_units": 96752.0
+    },
+    {
+      "id": 16,
+      "label": "P0014",
+      "x": 439.1941684274401,
+      "y": 173.03362249691298,
+      "size": 37.47214182344428,
+      "category": "Anchor",
+      "product_id": "P0014",
+      "total_units": 96586.0
+    },
+    {
+      "id": 17,
+      "label": "P0017",
+      "x": 338.95949350534266,
+      "y": 426.02341922767266,
+      "size": 37.43487698986975,
+      "category": "Anchor",
+      "product_id": "P0017",
+      "total_units": 96380.0
+    },
+    {
+      "id": 18,
+      "label": "P0012",
+      "x": 326.05588521209415,
+      "y": 354.2864894593474,
+      "size": 37.2883502170767,
+      "category": "Anchor",
+      "product_id": "P0012",
+      "total_units": 95570.0
+    },
+    {
+      "id": 19,
+      "label": "P0011",
+      "x": 343.1070433496526,
+      "y": 253.14000637385053,
+      "size": 36.92746020260492,
+      "category": "Anchor",
+      "product_id": "P0011",
+      "total_units": 93575.0
+    },
+    {
+      "id": 20,
+      "label": "P0008",
+      "x": 403.23771982430776,
+      "y": 138.8443679625458,
+      "size": 36.704052098408106,
+      "category": "Anchor",
+      "product_id": "P0008",
+      "total_units": 92340.0
+    }
+  ],
+  "edges": [
+    {
+      "from": 1,
+      "to": 13,
+      "type": "substitute",
+      "weight": 0.092,
+      "from_product": "P0016",
+      "to_product": "P0015"
+    },
+    {
+      "from": 5,
+      "to": 20,
+      "type": "substitute",
+      "weight": 0.077,
+      "from_product": "P0003",
+      "to_product": "P0008"
+    },
+    {
+      "from": 13,
+      "to": 18,
+      "type": "substitute",
+      "weight": 0.076,
+      "from_product": "P0015",
+      "to_product": "P0012"
+    },
+    {
+      "from": 3,
+      "to": 9,
+      "type": "complement",
+      "weight": 0.075,
+      "from_product": "P0013",
+      "to_product": "P0020"
+    },
+    {
+      "from": 10,
+      "to": 20,
+      "type": "complement",
+      "weight": 0.075,
+      "from_product": "P0007",
+      "to_product": "P0008"
+    },
+    {
+      "from": 11,
+      "to": 18,
+      "type": "substitute",
+      "weight": 0.074,
+      "from_product": "P0009",
+      "to_product": "P0012"
+    },
+    {
+      "from": 2,
+      "to": 11,
+      "type": "substitute",
+      "weight": 0.069,
+      "from_product": "P0006",
+      "to_product": "P0009"
+    },
+    {
+      "from": 9,
+      "to": 19,
+      "type": "substitute",
+      "weight": 0.065,
+      "from_product": "P0020",
+      "to_product": "P0011"
+    },
+    {
+      "from": 12,
+      "to": 13,
+      "type": "complement",
+      "weight": 0.063,
+      "from_product": "P0018",
+      "to_product": "P0015"
+    },
+    {
+      "from": 1,
+      "to": 18,
+      "type": "complement",
+      "weight": 0.062,
+      "from_product": "P0016",
+      "to_product": "P0012"
+    },
+    {
+      "from": 5,
+      "to": 16,
+      "type": "complement",
+      "weight": 0.061,
+      "from_product": "P0003",
+      "to_product": "P0014"
+    },
+    {
+      "from": 11,
+      "to": 19,
+      "type": "substitute",
+      "weight": 0.061,
+      "from_product": "P0009",
+      "to_product": "P0011"
+    },
+    {
+      "from": 5,
+      "to": 19,
+      "type": "complement",
+      "weight": 0.06,
+      "from_product": "P0003",
+      "to_product": "P0011"
+    },
+    {
+      "from": 9,
+      "to": 12,
+      "type": "substitute",
+      "weight": 0.059,
+      "from_product": "P0020",
+      "to_product": "P0018"
+    },
+    {
+      "from": 13,
+      "to": 15,
+      "type": "complement",
+      "weight": 0.058,
+      "from_product": "P0015",
+      "to_product": "P0004"
+    },
+    {
+      "from": 4,
+      "to": 5,
+      "type": "substitute",
+      "weight": 0.056,
+      "from_product": "P0001",
+      "to_product": "P0003"
+    },
+    {
+      "from": 17,
+      "to": 18,
+      "type": "substitute",
+      "weight": 0.056,
+      "from_product": "P0017",
+      "to_product": "P0012"
+    },
+    {
+      "from": 7,
+      "to": 10,
+      "type": "substitute",
+      "weight": 0.055,
+      "from_product": "P0002",
+      "to_product": "P0007"
+    },
+    {
+      "from": 3,
+      "to": 4,
+      "type": "substitute",
+      "weight": 0.054,
+      "from_product": "P0013",
+      "to_product": "P0001"
+    },
+    {
+      "from": 1,
+      "to": 9,
+      "type": "complement",
+      "weight": 0.053,
+      "from_product": "P0016",
+      "to_product": "P0020"
+    }
+  ]
+}

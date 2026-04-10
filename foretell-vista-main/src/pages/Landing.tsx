@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 const features = [
   {
     icon: TrendingUp,
-    title: "Demand Forecasting",
-    description: "AI-powered predictions using LightGBM & CatBoost with confidence intervals and accuracy tracking.",
+    title: "Instant Demand Forecasting",
+    description: "Get AI-powered predictions immediately - no data upload needed. Pre-trained models for Grocery, Fashion & Electronics.",
   },
   {
     icon: Package,
@@ -25,8 +25,8 @@ const features = [
   },
   {
     icon: Zap,
-    title: "Real-Time Processing",
-    description: "Stream retail data and get instant forecasts with sub-second latency across all stores.",
+    title: "Live Data Integrations",
+    description: "Connect Shopify, Square, or custom webhooks for automatic daily syncing and forecast updates.",
   },
   {
     icon: Shield,
@@ -74,12 +74,12 @@ const Landing = () => {
               <span className="block text-primary">&amp; Inventory Intelligence</span>
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-              Upload your sales data and let AI predict demand, optimize inventory, measure promotion impact, and uncover hidden product relationships — all in one platform.
+              Get accurate demand forecasts instantly with pre-trained AI models. No data upload needed. Optimize inventory, measure promotions, and uncover hidden product relationships — all in one platform.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link to="/signup">
                 <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 gap-2">
-                  Upload Dataset <ArrowRight className="h-4 w-4" />
+                  Get Started Free <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
               <Link to="/login">
@@ -97,7 +97,7 @@ const Landing = () => {
         <div className="text-center mb-14">
           <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">Everything You Need</h2>
           <p className="text-muted-foreground max-w-lg mx-auto">
-            End-to-end retail analytics from raw data to actionable insights.
+            End-to-end retail analytics from instant forecasts to actionable insights.
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -118,7 +118,7 @@ const Landing = () => {
         <div className="glass-card glow-border p-10 md:p-16 text-center">
           <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-4">Ready to Forecast Smarter?</h2>
           <p className="text-muted-foreground max-w-lg mx-auto mb-8">
-            Start with a CSV upload. Get AI-powered demand forecasts in minutes, not months.
+            Select your store type and get AI-powered demand forecasts in minutes. No data upload needed.
           </p>
           <Link to="/signup">
             <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 px-10 gap-2">

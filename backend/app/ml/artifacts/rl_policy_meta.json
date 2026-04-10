@@ -1,0 +1,961 @@
+{
+  "rl_total_cost": 313532.54,
+  "baseline_total_cost": 359515.28,
+  "cost_delta": 45982.73,
+  "service_level_rl": 100.0,
+  "service_level_baseline": 100.0,
+  "average_inventory_rl": 1606.76,
+  "average_inventory_baseline": 1842.29,
+  "reward_curve": [
+    {
+      "episode": 1,
+      "reward": -133.53,
+      "baseline": -133.53
+    },
+    {
+      "episode": 2,
+      "reward": -148.72,
+      "baseline": -190.52
+    },
+    {
+      "episode": 3,
+      "reward": -143.07,
+      "baseline": -189.27
+    },
+    {
+      "episode": 4,
+      "reward": -219.78,
+      "baseline": -261.06
+    },
+    {
+      "episode": 5,
+      "reward": -238.86,
+      "baseline": -274.37
+    },
+    {
+      "episode": 6,
+      "reward": -255.33,
+      "baseline": -293.54
+    },
+    {
+      "episode": 7,
+      "reward": -261.05,
+      "baseline": -303.41
+    },
+    {
+      "episode": 8,
+      "reward": -239.08,
+      "baseline": -281.92
+    },
+    {
+      "episode": 9,
+      "reward": -215.75,
+      "baseline": -258.96
+    },
+    {
+      "episode": 10,
+      "reward": -217.47,
+      "baseline": -262.8
+    },
+    {
+      "episode": 11,
+      "reward": -221.41,
+      "baseline": -262.66
+    },
+    {
+      "episode": 12,
+      "reward": -224.67,
+      "baseline": -270.91
+    },
+    {
+      "episode": 13,
+      "reward": -218.61,
+      "baseline": -261.52
+    },
+    {
+      "episode": 14,
+      "reward": -216.91,
+      "baseline": -251.02
+    },
+    {
+      "episode": 15,
+      "reward": -216.85,
+      "baseline": -250.08
+    },
+    {
+      "episode": 16,
+      "reward": -217.53,
+      "baseline": -245.23
+    },
+    {
+      "episode": 17,
+      "reward": -198.79,
+      "baseline": -225.81
+    },
+    {
+      "episode": 18,
+      "reward": -241.56,
+      "baseline": -270.25
+    },
+    {
+      "episode": 19,
+      "reward": -238.92,
+      "baseline": -269.22
+    },
+    {
+      "episode": 20,
+      "reward": -261.91,
+      "baseline": -291.9
+    },
+    {
+      "episode": 21,
+      "reward": -265.8,
+      "baseline": -296.69
+    },
+    {
+      "episode": 22,
+      "reward": -259.3,
+      "baseline": -292.47
+    },
+    {
+      "episode": 23,
+      "reward": -250.39,
+      "baseline": -283.38
+    },
+    {
+      "episode": 24,
+      "reward": -251.1,
+      "baseline": -287.37
+    },
+    {
+      "episode": 25,
+      "reward": -245.96,
+      "baseline": -281.95
+    },
+    {
+      "episode": 26,
+      "reward": -239.2,
+      "baseline": -277.37
+    },
+    {
+      "episode": 27,
+      "reward": -243.24,
+      "baseline": -281.44
+    },
+    {
+      "episode": 28,
+      "reward": -240.25,
+      "baseline": -280.86
+    },
+    {
+      "episode": 29,
+      "reward": -218.3,
+      "baseline": -260.59
+    },
+    {
+      "episode": 30,
+      "reward": -223.6,
+      "baseline": -265.21
+    },
+    {
+      "episode": 31,
+      "reward": -238.13,
+      "baseline": -278.3
+    },
+    {
+      "episode": 32,
+      "reward": -242.98,
+      "baseline": -285.91
+    },
+    {
+      "episode": 33,
+      "reward": -235.97,
+      "baseline": -278.93
+    },
+    {
+      "episode": 34,
+      "reward": -224.03,
+      "baseline": -256.39
+    },
+    {
+      "episode": 35,
+      "reward": -212.96,
+      "baseline": -247.39
+    },
+    {
+      "episode": 36,
+      "reward": -260.86,
+      "baseline": -297.54
+    },
+    {
+      "episode": 37,
+      "reward": -257.48,
+      "baseline": -295.62
+    },
+    {
+      "episode": 38,
+      "reward": -235.2,
+      "baseline": -271.96
+    },
+    {
+      "episode": 39,
+      "reward": -227.41,
+      "baseline": -266.49
+    },
+    {
+      "episode": 40,
+      "reward": -228.19,
+      "baseline": -267.52
+    },
+    {
+      "episode": 41,
+      "reward": -274.76,
+      "baseline": -309.46
+    },
+    {
+      "episode": 42,
+      "reward": -282.12,
+      "baseline": -315.69
+    },
+    {
+      "episode": 43,
+      "reward": -272.75,
+      "baseline": -307.59
+    },
+    {
+      "episode": 44,
+      "reward": -272.82,
+      "baseline": -307.38
+    },
+    {
+      "episode": 45,
+      "reward": -266.25,
+      "baseline": -299.16
+    },
+    {
+      "episode": 46,
+      "reward": -268.55,
+      "baseline": -302.86
+    },
+    {
+      "episode": 47,
+      "reward": -279.16,
+      "baseline": -314.21
+    },
+    {
+      "episode": 48,
+      "reward": -266.87,
+      "baseline": -301.89
+    },
+    {
+      "episode": 49,
+      "reward": -254.67,
+      "baseline": -295.46
+    },
+    {
+      "episode": 50,
+      "reward": -248.06,
+      "baseline": -291.85
+    },
+    {
+      "episode": 51,
+      "reward": -233.4,
+      "baseline": -273.86
+    },
+    {
+      "episode": 52,
+      "reward": -244.25,
+      "baseline": -285.75
+    },
+    {
+      "episode": 53,
+      "reward": -250.09,
+      "baseline": -293.38
+    },
+    {
+      "episode": 54,
+      "reward": -253.57,
+      "baseline": -295.94
+    },
+    {
+      "episode": 55,
+      "reward": -258.75,
+      "baseline": -304.23
+    },
+    {
+      "episode": 56,
+      "reward": -241.81,
+      "baseline": -282.38
+    },
+    {
+      "episode": 57,
+      "reward": -234.06,
+      "baseline": -270.54
+    },
+    {
+      "episode": 58,
+      "reward": -243.31,
+      "baseline": -280.6
+    },
+    {
+      "episode": 59,
+      "reward": -236.11,
+      "baseline": -272.1
+    },
+    {
+      "episode": 60,
+      "reward": -241.09,
+      "baseline": -275.83
+    },
+    {
+      "episode": 61,
+      "reward": -225.18,
+      "baseline": -262.06
+    },
+    {
+      "episode": 62,
+      "reward": -229.89,
+      "baseline": -264.5
+    },
+    {
+      "episode": 63,
+      "reward": -225.25,
+      "baseline": -258.31
+    },
+    {
+      "episode": 64,
+      "reward": -259.35,
+      "baseline": -292.38
+    },
+    {
+      "episode": 65,
+      "reward": -251.85,
+      "baseline": -282.2
+    },
+    {
+      "episode": 66,
+      "reward": -244.4,
+      "baseline": -277.19
+    },
+    {
+      "episode": 67,
+      "reward": -240.74,
+      "baseline": -275.44
+    },
+    {
+      "episode": 68,
+      "reward": -234.4,
+      "baseline": -273.72
+    },
+    {
+      "episode": 69,
+      "reward": -225.83,
+      "baseline": -265.52
+    },
+    {
+      "episode": 70,
+      "reward": -208.29,
+      "baseline": -247.91
+    },
+    {
+      "episode": 71,
+      "reward": -203.77,
+      "baseline": -240.31
+    },
+    {
+      "episode": 72,
+      "reward": -229.67,
+      "baseline": -263.23
+    },
+    {
+      "episode": 73,
+      "reward": -232.02,
+      "baseline": -265.64
+    },
+    {
+      "episode": 74,
+      "reward": -244.0,
+      "baseline": -276.65
+    },
+    {
+      "episode": 75,
+      "reward": -269.2,
+      "baseline": -303.84
+    },
+    {
+      "episode": 76,
+      "reward": -253.12,
+      "baseline": -289.91
+    },
+    {
+      "episode": 77,
+      "reward": -232.45,
+      "baseline": -268.02
+    },
+    {
+      "episode": 78,
+      "reward": -213.63,
+      "baseline": -248.86
+    },
+    {
+      "episode": 79,
+      "reward": -214.87,
+      "baseline": -249.83
+    },
+    {
+      "episode": 80,
+      "reward": -244.86,
+      "baseline": -275.18
+    },
+    {
+      "episode": 81,
+      "reward": -237.0,
+      "baseline": -266.03
+    },
+    {
+      "episode": 82,
+      "reward": -239.79,
+      "baseline": -270.61
+    },
+    {
+      "episode": 83,
+      "reward": -234.32,
+      "baseline": -265.07
+    },
+    {
+      "episode": 84,
+      "reward": -227.37,
+      "baseline": -259.41
+    },
+    {
+      "episode": 85,
+      "reward": -224.65,
+      "baseline": -254.6
+    },
+    {
+      "episode": 86,
+      "reward": -227.91,
+      "baseline": -257.72
+    },
+    {
+      "episode": 87,
+      "reward": -231.03,
+      "baseline": -260.83
+    },
+    {
+      "episode": 88,
+      "reward": -227.01,
+      "baseline": -260.12
+    },
+    {
+      "episode": 89,
+      "reward": -225.31,
+      "baseline": -257.04
+    },
+    {
+      "episode": 90,
+      "reward": -224.3,
+      "baseline": -256.75
+    },
+    {
+      "episode": 91,
+      "reward": -215.16,
+      "baseline": -247.26
+    },
+    {
+      "episode": 92,
+      "reward": -217.06,
+      "baseline": -249.39
+    },
+    {
+      "episode": 93,
+      "reward": -215.58,
+      "baseline": -247.85
+    },
+    {
+      "episode": 94,
+      "reward": -229.65,
+      "baseline": -262.84
+    },
+    {
+      "episode": 95,
+      "reward": -250.54,
+      "baseline": -279.84
+    },
+    {
+      "episode": 96,
+      "reward": -234.82,
+      "baseline": -265.18
+    },
+    {
+      "episode": 97,
+      "reward": -229.34,
+      "baseline": -260.82
+    },
+    {
+      "episode": 98,
+      "reward": -232.08,
+      "baseline": -263.64
+    },
+    {
+      "episode": 99,
+      "reward": -223.6,
+      "baseline": -257.24
+    },
+    {
+      "episode": 100,
+      "reward": -227.01,
+      "baseline": -260.84
+    },
+    {
+      "episode": 101,
+      "reward": -220.97,
+      "baseline": -253.42
+    },
+    {
+      "episode": 102,
+      "reward": -239.98,
+      "baseline": -272.92
+    },
+    {
+      "episode": 103,
+      "reward": -263.88,
+      "baseline": -299.56
+    },
+    {
+      "episode": 104,
+      "reward": -253.83,
+      "baseline": -293.51
+    },
+    {
+      "episode": 105,
+      "reward": -260.34,
+      "baseline": -298.98
+    },
+    {
+      "episode": 106,
+      "reward": -292.99,
+      "baseline": -336.53
+    },
+    {
+      "episode": 107,
+      "reward": -287.34,
+      "baseline": -326.01
+    },
+    {
+      "episode": 108,
+      "reward": -285.15,
+      "baseline": -324.11
+    },
+    {
+      "episode": 109,
+      "reward": -267.29,
+      "baseline": -305.46
+    },
+    {
+      "episode": 110,
+      "reward": -250.83,
+      "baseline": -287.81
+    },
+    {
+      "episode": 111,
+      "reward": -239.67,
+      "baseline": -275.01
+    },
+    {
+      "episode": 112,
+      "reward": -238.48,
+      "baseline": -272.78
+    },
+    {
+      "episode": 113,
+      "reward": -266.82,
+      "baseline": -299.55
+    },
+    {
+      "episode": 114,
+      "reward": -255.25,
+      "baseline": -286.89
+    },
+    {
+      "episode": 115,
+      "reward": -265.11,
+      "baseline": -296.7
+    },
+    {
+      "episode": 116,
+      "reward": -281.21,
+      "baseline": -316.9
+    },
+    {
+      "episode": 117,
+      "reward": -275.04,
+      "baseline": -313.79
+    },
+    {
+      "episode": 118,
+      "reward": -250.12,
+      "baseline": -289.63
+    },
+    {
+      "episode": 119,
+      "reward": -248.47,
+      "baseline": -287.43
+    },
+    {
+      "episode": 120,
+      "reward": -250.88,
+      "baseline": -287.56
+    },
+    {
+      "episode": 121,
+      "reward": -252.9,
+      "baseline": -289.3
+    },
+    {
+      "episode": 122,
+      "reward": -272.27,
+      "baseline": -307.66
+    },
+    {
+      "episode": 123,
+      "reward": -260.74,
+      "baseline": -296.38
+    },
+    {
+      "episode": 124,
+      "reward": -249.97,
+      "baseline": -285.12
+    },
+    {
+      "episode": 125,
+      "reward": -246.21,
+      "baseline": -282.3
+    },
+    {
+      "episode": 126,
+      "reward": -242.39,
+      "baseline": -278.2
+    },
+    {
+      "episode": 127,
+      "reward": -244.7,
+      "baseline": -280.74
+    },
+    {
+      "episode": 128,
+      "reward": -254.35,
+      "baseline": -291.66
+    },
+    {
+      "episode": 129,
+      "reward": -265.91,
+      "baseline": -299.54
+    },
+    {
+      "episode": 130,
+      "reward": -271.92,
+      "baseline": -305.09
+    },
+    {
+      "episode": 131,
+      "reward": -282.29,
+      "baseline": -314.85
+    },
+    {
+      "episode": 132,
+      "reward": -270.52,
+      "baseline": -304.3
+    },
+    {
+      "episode": 133,
+      "reward": -257.45,
+      "baseline": -291.05
+    },
+    {
+      "episode": 134,
+      "reward": -272.89,
+      "baseline": -309.17
+    },
+    {
+      "episode": 135,
+      "reward": -275.38,
+      "baseline": -312.5
+    },
+    {
+      "episode": 136,
+      "reward": -263.86,
+      "baseline": -301.9
+    },
+    {
+      "episode": 137,
+      "reward": -272.81,
+      "baseline": -308.43
+    },
+    {
+      "episode": 138,
+      "reward": -287.59,
+      "baseline": -325.6
+    },
+    {
+      "episode": 139,
+      "reward": -274.86,
+      "baseline": -311.46
+    },
+    {
+      "episode": 140,
+      "reward": -263.58,
+      "baseline": -300.4
+    },
+    {
+      "episode": 141,
+      "reward": -264.53,
+      "baseline": -297.89
+    },
+    {
+      "episode": 142,
+      "reward": -255.88,
+      "baseline": -288.44
+    },
+    {
+      "episode": 143,
+      "reward": -264.6,
+      "baseline": -296.56
+    },
+    {
+      "episode": 144,
+      "reward": -251.69,
+      "baseline": -284.36
+    },
+    {
+      "episode": 145,
+      "reward": -232.87,
+      "baseline": -264.63
+    },
+    {
+      "episode": 146,
+      "reward": -236.68,
+      "baseline": -270.37
+    },
+    {
+      "episode": 147,
+      "reward": -239.37,
+      "baseline": -275.71
+    },
+    {
+      "episode": 148,
+      "reward": -225.5,
+      "baseline": -261.38
+    },
+    {
+      "episode": 149,
+      "reward": -211.36,
+      "baseline": -245.12
+    },
+    {
+      "episode": 150,
+      "reward": -208.34,
+      "baseline": -243.18
+    },
+    {
+      "episode": 151,
+      "reward": -201.83,
+      "baseline": -230.94
+    },
+    {
+      "episode": 152,
+      "reward": -193.84,
+      "baseline": -223.12
+    },
+    {
+      "episode": 153,
+      "reward": -227.19,
+      "baseline": -256.86
+    },
+    {
+      "episode": 154,
+      "reward": -240.56,
+      "baseline": -274.36
+    },
+    {
+      "episode": 155,
+      "reward": -252.29,
+      "baseline": -291.69
+    },
+    {
+      "episode": 156,
+      "reward": -254.73,
+      "baseline": -294.18
+    },
+    {
+      "episode": 157,
+      "reward": -254.9,
+      "baseline": -296.5
+    },
+    {
+      "episode": 158,
+      "reward": -218.17,
+      "baseline": -255.25
+    },
+    {
+      "episode": 159,
+      "reward": -181.83,
+      "baseline": -208.72
+    },
+    {
+      "episode": 160,
+      "reward": -149.96,
+      "baseline": -171.11
+    },
+    {
+      "episode": 161,
+      "reward": -133.11,
+      "baseline": -151.65
+    },
+    {
+      "episode": 162,
+      "reward": -119.32,
+      "baseline": -137.81
+    },
+    {
+      "episode": 163,
+      "reward": -88.89,
+      "baseline": -99.15
+    },
+    {
+      "episode": 164,
+      "reward": -89.88,
+      "baseline": -100.15
+    },
+    {
+      "episode": 165,
+      "reward": -49.11,
+      "baseline": -54.66
+    },
+    {
+      "episode": 166,
+      "reward": -47.11,
+      "baseline": -52.22
+    },
+    {
+      "episode": 167,
+      "reward": -15.33,
+      "baseline": -17.23
+    },
+    {
+      "episode": 168,
+      "reward": -14.52,
+      "baseline": -16.42
+    },
+    {
+      "episode": 169,
+      "reward": -13.9,
+      "baseline": -15.8
+    },
+    {
+      "episode": 170,
+      "reward": -12.78,
+      "baseline": -14.61
+    },
+    {
+      "episode": 171,
+      "reward": -8.74,
+      "baseline": -10.08
+    },
+    {
+      "episode": 172,
+      "reward": -9.73,
+      "baseline": -11.64
+    },
+    {
+      "episode": 173,
+      "reward": -20.59,
+      "baseline": -22.69
+    },
+    {
+      "episode": 174,
+      "reward": -17.29,
+      "baseline": -19.39
+    }
+  ],
+  "scenario_defaults": {
+    "store_id": "S002",
+    "product_id": "P0001",
+    "periods": 14
+  },
+  "series": [
+    {
+      "store_id": "S002",
+      "product_id": "P0001",
+      "rl_total_cost": 40747.63,
+      "baseline_total_cost": 46362.92,
+      "savings": 5615.29,
+      "service_level_rl": 100.0,
+      "service_level_baseline": 100.0
+    },
+    {
+      "store_id": "S003",
+      "product_id": "P0016",
+      "rl_total_cost": 40217.72,
+      "baseline_total_cost": 46058.57,
+      "savings": 5840.85,
+      "service_level_rl": 100.0,
+      "service_level_baseline": 100.0
+    },
+    {
+      "store_id": "S001",
+      "product_id": "P0001",
+      "rl_total_cost": 39071.59,
+      "baseline_total_cost": 44611.75,
+      "savings": 5540.17,
+      "service_level_rl": 100.0,
+      "service_level_baseline": 100.0
+    },
+    {
+      "store_id": "S004",
+      "product_id": "P0019",
+      "rl_total_cost": 42024.89,
+      "baseline_total_cost": 47828.4,
+      "savings": 5803.51,
+      "service_level_rl": 100.0,
+      "service_level_baseline": 100.0
+    },
+    {
+      "store_id": "S003",
+      "product_id": "P0002",
+      "rl_total_cost": 39012.29,
+      "baseline_total_cost": 44760.06,
+      "savings": 5747.77,
+      "service_level_rl": 100.0,
+      "service_level_baseline": 100.0
+    },
+    {
+      "store_id": "S001",
+      "product_id": "P0013",
+      "rl_total_cost": 37342.57,
+      "baseline_total_cost": 43157.64,
+      "savings": 5815.07,
+      "service_level_rl": 100.0,
+      "service_level_baseline": 100.0
+    },
+    {
+      "store_id": "S005",
+      "product_id": "P0016",
+      "rl_total_cost": 39211.2,
+      "baseline_total_cost": 45483.57,
+      "savings": 6272.37,
+      "service_level_rl": 100.0,
+      "service_level_baseline": 100.0
+    },
+    {
+      "store_id": "S003",
+      "product_id": "P0013",
+      "rl_total_cost": 35904.65,
+      "baseline_total_cost": 41252.36,
+      "savings": 5347.7,
+      "service_level_rl": 100.0,
+      "service_level_baseline": 100.0
+    }
+  ],
+  "evaluated_store_id": null
+}

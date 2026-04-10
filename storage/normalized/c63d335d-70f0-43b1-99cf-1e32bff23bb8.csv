@@ -1,0 +1,3 @@
+store_id,product_id,date,units_sold,inventory_level,price,discount,competitor_price,holiday,seasonality,weather
+S001,P001,2026-01-01,100,700.0,9.99,0.0,9.99,0,Winter,Unknown
+S001,P001,2026-01-02,110,770.0,9.99,0.0,9.99,1,Winter,Unknown

@@ -139,8 +139,9 @@ def load_or_train() -> ForecastArtifacts:
     return train_and_save()
 
 
-def training_summary() -> Dict[str, object]:
-    artifacts = load_or_train()
+def training_summary(artifacts: Optional[ForecastArtifacts] = None) -> Dict[str, object]:
+    if artifacts is None:
+        artifacts = load_or_train()
     return {
         "metrics": artifacts.metrics,
         "metadata": artifacts.metadata,
@@ -256,8 +257,10 @@ def forecast(
     horizon: int = 30,
     product_id: Optional[str] = None,
     gnn_adjust: bool = True,
+    artifacts: Optional[ForecastArtifacts] = None,
 ) -> List[Dict[str, float]]:
-    artifacts = load_or_train()
+    if artifacts is None:
+        artifacts = load_or_train()
     history = artifacts.history
     store_hist = history[history["store_id"] == store_id]
     if store_hist.empty:
@@ -318,13 +321,15 @@ def forecast_multi(
     product_id: Optional[str] = None,
     horizons: Optional[List[int]] = None,
     gnn_adjust: bool = True,
+    artifacts: Optional[ForecastArtifacts] = None,
 ) -> Dict[int, List[Dict[str, float]]]:
     horizons = horizons or [7, 14, 30]
-    return {h: forecast(store_id, horizon=h, product_id=product_id, gnn_adjust=gnn_adjust) for h in horizons}
+    return {h: forecast(store_id, horizon=h, product_id=product_id, gnn_adjust=gnn_adjust, artifacts=artifacts) for h in horizons}
 
 
-def recent_actuals(store_id: str, product_id: Optional[str], days: int = 10) -> List[Dict[str, float]]:
-    artifacts = load_or_train()
+def recent_actuals(store_id: str, product_id: Optional[str], days: int = 10, artifacts: Optional[ForecastArtifacts] = None) -> List[Dict[str, float]]:
+    if artifacts is None:
+        artifacts = load_or_train()
     history = artifacts.history
     store_hist = history[history["store_id"] == store_id]
     if store_hist.empty:
